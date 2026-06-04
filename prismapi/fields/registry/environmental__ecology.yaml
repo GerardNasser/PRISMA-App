@@ -1,0 +1,88 @@
+id: environmental__ecology
+version: 0.2.0
+effective_date: "2026-05-13"
+field: environmental
+review_type: ecology
+label: "Environmental / ecology"
+summary: >
+  Systematic reviews in ecology and conservation biology. ROSES reporting
+  (CEE), log response ratio as the dominant effect size, multilevel /
+  phylogenetic random-effects models for non-independent effect sizes.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+  notes: ROSES (roses-reporting.com) is the field-preferred reporting standard for environmental management questions.
+
+registries:
+  primary: OSF
+  alternatives: [PROSPERO]
+
+databases:
+  required: [web_of_science, scopus]
+  recommended: [cab_abstracts, biosis, agris]
+  grey_literature_mandatory: true
+
+extraction_template:
+  base: PRISMA_GENERIC
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: location, label: "Location / biome", type: text, group: design}
+    - {key: design, label: "Study design", type: select_one,
+       options: [experimental, observational, before_after, control_impact, gradient, modelling, other], required: true, group: design}
+    - {key: taxa, label: "Taxa / system studied", type: text, group: pico}
+    - {key: intervention_or_driver, label: "Intervention / driver", type: longtext, required: true, group: pico}
+    - {key: control, label: "Control", type: longtext, group: pico}
+    - {key: response_variable, label: "Response variable", type: text, required: true, group: results}
+    - {key: n_per_group, label: "N per group", type: integer, group: results}
+    - {key: mean_treatment, label: "Mean (treatment)", type: number, group: results}
+    - {key: sd_treatment, label: "SD (treatment)", type: number, group: results}
+    - {key: mean_control, label: "Mean (control)", type: number, group: results}
+    - {key: sd_control, label: "SD (control)", type: number, group: results}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: CEESAT
+
+effect_sizes:
+  default: lnrr
+  allowed: [lnrr, smd_hedges_g, log_or, r]
+
+synthesis:
+  model_default: multilevel_rma_mv
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval, multilevel]
+
+publication_bias:
+  required_methods: [egger, trim_fill_sensitivity]
+  default_panel: [egger, trim_fill_sensitivity]
+
+certainty:
+  framework: GRADE
+  notes: GRADE adapted (Konno & Pullin 2020) is acceptable in environmental evidence; CEESAT for synthesis-level appraisal.
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: pseudoreplication
+    severity: warn
+    message: >
+      Site-level pseudoreplication and shared control re-use are the dominant
+      independence violations in ecology. Plan multilevel or phylogenetic
+      models (metafor::rma.mv) from the start.
+
+citations:
+  - "Haddaway NR, Macura B, Whaley P, Pullin AS. 2018. ROSES. Environ Evid 7:7."
+  - "Nakagawa S, Santos ESA. 2012. Methodological issues and advances in biological meta-analysis."

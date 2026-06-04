@@ -1,0 +1,95 @@
+id: health__intervention
+version: 0.2.0
+effective_date: "2026-05-13"
+field: health
+review_type: intervention
+label: "Health sciences — Interventions / RCTs"
+summary: >
+  Reviews of clinical and public-health interventions. PRISMA 2020 reporting,
+  Cochrane RoB 2 for randomised trials (or ROBINS-I for non-randomised),
+  GRADE certainty, standardised mean difference / log OR pooling.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+
+registries:
+  primary: PROSPERO
+  alternatives: [OSF]
+
+databases:
+  required: [pubmed, embase, cochrane_central]
+  recommended: [web_of_science, scopus, cinahl]
+  grey_literature_mandatory: false
+  auto_filters: [cochrane_rct_pubmed]
+
+extraction_template:
+  base: PRISMA_GENERIC
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: pmid, label: "PMID", type: text, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: journal, label: "Journal", type: text, group: source}
+    - {key: country, label: "Country", type: text, group: source}
+    - {key: design, label: "Study design", type: select_one,
+       options: [rct, cluster_rct, crossover_rct, quasi_experimental, before_after, other], required: true, group: design}
+    - {key: setting, label: "Setting", type: text, group: design,
+       help: "Where was the study conducted (hospital, primary care, community, etc.)?"}
+    - {key: population, label: "Population", type: longtext, required: true, group: pico}
+    - {key: intervention, label: "Intervention", type: longtext, required: true, group: pico}
+    - {key: comparator, label: "Comparator", type: longtext, group: pico}
+    - {key: primary_outcomes, label: "Primary outcomes", type: longtext, required: true, group: pico}
+    - {key: secondary_outcomes, label: "Secondary outcomes", type: longtext, group: pico}
+    - {key: n_intervention, label: "N (intervention)", type: integer, group: results}
+    - {key: n_comparator, label: "N (comparator)", type: integer, group: results}
+    - {key: followup_duration, label: "Follow-up duration", type: text, group: results}
+    - {key: effect_estimate, label: "Effect estimate (verbatim)", type: longtext, group: results}
+    - {key: funding, label: "Funding source", type: text, group: meta}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: RoB_2
+
+effect_sizes:
+  default: smd_hedges_g
+  allowed: [smd_hedges_g, md, log_or, log_rr, log_hr]
+
+synthesis:
+  model_default: random_effects_reml
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval]
+  hk_adjustment_default: true
+  prediction_interval_default: true
+
+publication_bias:
+  required_methods: [egger, trim_fill_sensitivity]
+  default_panel: [egger, trim_fill_sensitivity]
+  mandatory: false
+
+certainty:
+  framework: GRADE
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: outcome_switching
+    severity: warn
+    message: >
+      Check the registered protocol against the published manuscript — outcome
+      switching between protocol and report is a common selective-reporting
+      red flag.
+
+citations:
+  - "Page MJ et al. 2021. The PRISMA 2020 statement. BMJ 372:n71."
+  - "Sterne JAC et al. 2019. RoB 2: a revised tool for assessing risk of bias in randomised trials. BMJ 366:l4898."

@@ -1,0 +1,93 @@
+id: engineering__slr
+version: 0.2.0
+effective_date: "2026-05-13"
+field: engineering
+review_type: slr
+label: "Engineering / software systematic literature review"
+summary: >
+  Systematic literature reviews in software engineering and computer science.
+  Kitchenham 2007/2015 methodology, Dybå-Dingsøyr quality criteria. Effect
+  pooling is uncommon — structured narrative + vote-counting dominate.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+  notes: Kitchenham EBSE-2007-01 + Kitchenham/Budgen/Brereton 2015 are the field-standard methodology guides.
+
+registries:
+  primary: OSF
+  alternatives: [PROSPERO]
+
+databases:
+  required: [ieee_xplore, acm_digital_library, scopus, web_of_science]
+  recommended: [dblp, engineering_village, arxiv]
+
+extraction_template:
+  base: PRISMA_GENERIC
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: venue, label: "Venue (conference / journal)", type: text, group: source}
+    - {key: paper_type, label: "Paper type", type: select_one,
+       options: [empirical_quantitative, empirical_qualitative, case_study, experience_report, theoretical, tool_or_method, survey, other], required: true, group: design}
+    - {key: rq_addressed, label: "Which RQ(s) does this paper address?", type: longtext, required: true, group: design}
+    - {key: context, label: "Context (industry, OSS, academic)", type: text, group: design}
+    - {key: artefact, label: "Artefact / system studied", type: text, group: design}
+    - {key: method, label: "Method / approach proposed", type: longtext, group: results}
+    - {key: evaluation, label: "Evaluation approach", type: longtext, group: results}
+    - {key: key_findings, label: "Key findings", type: longtext, required: true, group: results}
+    - {key: replication_package, label: "Replication / artefact available", type: boolean, group: results}
+    - {key: limitations, label: "Author-reported limitations", type: longtext, group: meta}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: DYBA_DINGSOYR
+
+effect_sizes:
+  default: none_narrative
+  allowed: [none_narrative, smd_hedges_g, log_or]
+
+synthesis:
+  model_default: none_narrative
+  modules: [forest, subgroup]
+  hk_adjustment_default: false
+  prediction_interval_default: false
+
+publication_bias:
+  required_methods: []
+  default_panel: []
+
+certainty:
+  framework: narrative_only
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: false
+  publication_bias: false
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: google_scholar_only
+    severity: warn
+    message: >
+      Google Scholar alone is not reproducible (Gusenbauer & Haddaway 2020).
+      Include at least 3-4 dedicated databases (IEEE Xplore, ACM DL, Scopus,
+      WoS) and document snowballing if used.
+  - key: vote_counting_caveat
+    severity: info
+    message: >
+      Vote-counting and structured narrative are the dominant synthesis modes
+      in SE because heterogeneity is too high for statistical pooling. Be
+      explicit about that choice in the methods.
+
+citations:
+  - "Kitchenham B, Charters S. 2007. Guidelines for performing Systematic Literature Reviews in Software Engineering. EBSE-2007-01."
+  - "Dybå T, Dingsøyr T. 2008. Empirical studies of agile software development. IST 50:833-859."

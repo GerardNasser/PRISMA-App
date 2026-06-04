@@ -1,0 +1,87 @@
+id: social__education
+version: 0.2.0
+effective_date: "2026-05-13"
+field: social
+review_type: education
+label: "Education / learning sciences"
+summary: >
+  Meta-analyses of educational interventions. Hedges' g with small-sample
+  correction, RVE for dependent effect sizes from multi-arm or
+  multi-outcome studies, WWC standards considered.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+
+registries:
+  primary: OSF
+  alternatives: [PROSPERO]
+
+databases:
+  required: [eric, psycinfo]
+  recommended: [pubmed, web_of_science, scopus]
+
+extraction_template:
+  base: PRISMA_GENERIC
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: design, label: "Study design", type: select_one,
+       options: [rct, cluster_rct, quasi_experimental, regression_discontinuity, other], required: true, group: design}
+    - {key: grade_level, label: "Grade / age level", type: text, group: pico}
+    - {key: subject_area, label: "Subject area", type: text, group: pico}
+    - {key: setting, label: "Setting (urban, rural, country)", type: text, group: pico}
+    - {key: intervention, label: "Intervention", type: longtext, required: true, group: pico}
+    - {key: comparator, label: "Comparator", type: longtext, group: pico}
+    - {key: outcome, label: "Outcome (test, grade, attainment…)", type: longtext, required: true, group: pico}
+    - {key: n_intervention, label: "N (intervention)", type: integer, group: results}
+    - {key: n_comparator, label: "N (comparator)", type: integer, group: results}
+    - {key: cluster_unit, label: "Cluster unit", type: text, group: results,
+       help: "e.g. classroom, school — needed for RVE / multilevel pooling."}
+    - {key: effect_size_value, label: "Effect size (Hedges' g)", type: number, group: results}
+    - {key: variance, label: "Variance", type: number, group: results}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: ROBINS_I
+
+effect_sizes:
+  default: smd_hedges_g
+  allowed: [smd_hedges_g, log_or]
+
+synthesis:
+  model_default: rve_cr2
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval, rve]
+
+publication_bias:
+  required_methods: [egger, trim_fill_sensitivity]
+  default_panel: [egger, trim_fill_sensitivity]
+
+certainty:
+  framework: GRADE
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: developer_led_inflation
+    severity: info
+    message: >
+      Curriculum-developer-led evaluations show inflated effects (Cheung &
+      Slavin 2016). Code "developer-led vs independent" as a moderator if
+      enough studies are available.
+
+citations:
+  - "What Works Clearinghouse Standards Handbook v5.0 (IES 2022)."
+  - "Tanner-Smith EE, Tipton E. 2014. Robust variance estimation for meta-analysis with dependent effect sizes."

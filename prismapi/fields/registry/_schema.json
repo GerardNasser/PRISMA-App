@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prismapi.dev/schemas/field-config.json",
+  "title": "FieldConfig",
+  "description": "Declarative configuration for a (field, review_type) pair. Drives form rendering, defaults, and module enablement across the platform.",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "effective_date",
+    "field",
+    "review_type",
+    "label",
+    "summary",
+    "reporting",
+    "registries",
+    "databases",
+    "extraction_template",
+    "risk_of_bias",
+    "effect_sizes",
+    "synthesis",
+    "publication_bias",
+    "certainty",
+    "modules"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+__[a-z0-9_]+$",
+      "description": "Composite id `<field>__<review_type>`."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "effective_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "field": {
+      "type": "string",
+      "description": "Top-level field cluster (e.g., microbiome, economics, ecology)."
+    },
+    "review_type": {
+      "type": "string",
+      "description": "Review type within the field (e.g., 16s_human, metaregression)."
+    },
+    "label": {"type": "string"},
+    "summary": {"type": "string"},
+    "branch_choices": {
+      "type": "array",
+      "description": "Up-front choices the user must make before the rest of the form renders (e.g., Schmidt-Hunter vs Hedges-Olkin for mgmt MA).",
+      "items": {
+        "type": "object",
+        "required": ["key", "label", "options"],
+        "properties": {
+          "key": {"type": "string"},
+          "label": {"type": "string"},
+          "description": {"type": "string"},
+          "required": {"type": "boolean", "default": true},
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "properties": {
+                "value": {"type": "string"},
+                "label": {"type": "string"},
+                "description": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "default": []
+    },
+    "reporting": {
+      "type": "object",
+      "required": ["primary", "extensions"],
+      "properties": {
+        "primary": {
+          "type": "string",
+          "description": "Canonical reporting standard (e.g., PRISMA_2020, ROSES, JARS_QUANT, ARRIVE_2.0)."
+        },
+        "extensions": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "notes": {"type": "string"}
+      }
+    },
+    "registries": {
+      "type": "object",
+      "required": ["primary", "alternatives"],
+      "properties": {
+        "primary": {"type": "string"},
+        "alternatives": {"type": "array", "items": {"type": "string"}},
+        "suppressed": {"type": "array", "items": {"type": "string"}, "default": []},
+        "notes": {"type": "string"}
+      }
+    },
+    "databases": {
+      "type": "object",
+      "required": ["required", "recommended"],
+      "properties": {
+        "required": {"type": "array", "items": {"type": "string"}},
+        "recommended": {"type": "array", "items": {"type": "string"}},
+        "grey_literature_mandatory": {"type": "boolean", "default": false},
+        "auto_filters": {
+          "type": "array",
+          "description": "Search filters to auto-inject (e.g., hooijmans_pubmed_animal).",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "extraction_template": {
+      "type": "object",
+      "required": ["base", "fields"],
+      "properties": {
+        "base": {
+          "type": "string",
+          "enum": [
+            "PRISMA_GENERIC",
+            "STORMS",
+            "ARRIVE",
+            "STROBE_NUT",
+            "STROBE_VET",
+            "TIDieR",
+            "CHARMS",
+            "MAER_NET",
+            "JARS_QUANT",
+            "JBI_PREVALENCE",
+            "JBI_QUAL"
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "label", "type"],
+            "properties": {
+              "key": {"type": "string"},
+              "label": {"type": "string"},
+              "type": {
+                "type": "string",
+                "enum": ["text", "longtext", "number", "integer", "boolean", "date", "select_one", "select_many", "doi", "accession"]
+              },
+              "options": {"type": "array", "items": {"type": "string"}},
+              "group": {"type": "string"},
+              "required": {"type": "boolean", "default": false},
+              "help": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "risk_of_bias": {
+      "type": "object",
+      "required": ["tool"],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "enum": [
+            "RoB_2",
+            "ROBINS_I",
+            "ROBINS_E",
+            "QUADAS_2",
+            "QUIPS",
+            "PROBAST",
+            "PROBAST_AI",
+            "QUADAS_AI",
+            "SYRCLE",
+            "JBI_PER_DESIGN",
+            "CASP_QUAL",
+            "MMAT_2018",
+            "DYBA_DINGSOYR",
+            "MARYLAND_SMS",
+            "EPOC",
+            "NOS_WARN",
+            "CEESAT",
+            "WWC_5",
+            "NONE",
+            "CUSTOM"
+          ]
+        },
+        "domains": {
+          "type": "array",
+          "description": "Custom domains when tool == CUSTOM (e.g., microbiome STORMS-derived). Each domain has a label + judgement scale.",
+          "items": {
+            "type": "object",
+            "required": ["key", "label"],
+            "properties": {
+              "key": {"type": "string"},
+              "label": {"type": "string"},
+              "help": {"type": "string"}
+            }
+          }
+        },
+        "scale": {
+          "type": "array",
+          "description": "Judgement levels.",
+          "items": {"type": "string"},
+          "default": ["low", "some_concerns", "high", "no_information"]
+        },
+        "applies_at_review_level": {
+          "type": "boolean",
+          "default": false,
+          "description": "True for AMSTAR-2 / ROBIS / CEESAT (umbrella-level)."
+        }
+      }
+    },
+    "effect_sizes": {
+      "type": "object",
+      "required": ["default", "allowed"],
+      "properties": {
+        "default": {
+          "type": "string",
+          "enum": ["smd_hedges_g", "md", "log_or", "log_rr", "log_hr", "pcc", "lnrr", "nmd", "proportion_logit", "proportion_pft", "proportion_glmm", "auc_reitsma", "r", "rho_corrected", "none_narrative"]
+        },
+        "allowed": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "transform_notes": {"type": "string"}
+      }
+    },
+    "synthesis": {
+      "type": "object",
+      "required": ["model_default", "modules"],
+      "properties": {
+        "model_default": {
+          "type": "string",
+          "enum": ["random_effects_reml", "random_effects_dl", "random_effects_pm", "schmidt_hunter", "common_effect", "multilevel_rma_mv", "rve_cr2", "network_meta", "bayesian", "none_narrative", "meta_aggregation", "thematic", "framework", "realist_cmo", "meta_narrative", "cis"]
+        },
+        "modules": {
+          "type": "array",
+          "description": "Engine modules enabled.",
+          "items": {
+            "type": "string",
+            "enum": ["forest", "funnel", "labbe", "baujat", "leave_one_out", "subgroup", "meta_regression", "knapp_hartung", "prediction_interval", "credibility_interval", "psychometric_corrections", "multilevel", "rve", "network", "bayesian", "synthesis_findings_table", "cmo_table", "thematic_themes"]
+          }
+        },
+        "hk_adjustment_default": {"type": "boolean", "default": true},
+        "prediction_interval_default": {"type": "boolean", "default": true}
+      }
+    },
+    "publication_bias": {
+      "type": "object",
+      "required": ["required_methods", "default_panel"],
+      "properties": {
+        "required_methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["egger", "rank_corr", "tes", "p_uniform", "p_curve", "z_curve", "top_10_precise", "trim_fill_sensitivity", "pet_peese", "maive", "selection_vevea", "selection_andrews_kasy", "robma"]
+          }
+        },
+        "default_panel": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "mandatory": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, user cannot opt out (e.g., animal SRs)."
+        }
+      }
+    },
+    "certainty": {
+      "type": "object",
+      "required": ["framework"],
+      "properties": {
+        "framework": {
+          "type": "string",
+          "enum": ["GRADE", "GRADE_CERQual", "ConQual", "NutriGrade", "GRADE_animal_no_large_effect_upgrade", "WWC_tiers", "narrative_only", "none"]
+        },
+        "downgrade_domains": {"type": "array", "items": {"type": "string"}},
+        "upgrade_domains": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "string"}
+      }
+    },
+    "modules": {
+      "type": "object",
+      "description": "Module enablement flags.",
+      "properties": {
+        "screening": {"type": "boolean", "default": true},
+        "irr": {"type": "boolean", "default": true},
+        "extraction": {"type": "boolean", "default": true},
+        "risk_of_bias": {"type": "boolean", "default": true},
+        "synthesis_quantitative": {"type": "boolean", "default": true},
+        "publication_bias": {"type": "boolean", "default": true},
+        "certainty": {"type": "boolean", "default": true},
+        "prisma_flow": {"type": "boolean", "default": true},
+        "manuscript_export": {"type": "boolean", "default": true},
+        "microbiome_pipeline": {"type": "boolean", "default": false},
+        "school_choice_required": {"type": "boolean", "default": false}
+      },
+      "additionalProperties": false
+    },
+    "qrp_warnings": {
+      "type": "array",
+      "description": "QRP / pitfall warnings to surface in-UI for this field.",
+      "items": {
+        "type": "object",
+        "required": ["key", "message"],
+        "properties": {
+          "key": {"type": "string"},
+          "message": {"type": "string"},
+          "severity": {"type": "string", "enum": ["info", "warn", "block"], "default": "warn"}
+        }
+      },
+      "default": []
+    },
+    "citations": {
+      "type": "array",
+      "description": "Authoritative citations underpinning this config.",
+      "items": {"type": "string"}
+    },
+    "verify_flags": {
+      "type": "array",
+      "description": "Items flagged for web-verification before user-facing copy goes live.",
+      "items": {"type": "string"},
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,89 @@
+id: qualitative__synthesis
+version: 0.2.0
+effective_date: "2026-05-13"
+field: qualitative
+review_type: synthesis
+label: "Qualitative evidence synthesis"
+summary: >
+  Qualitative evidence synthesis — meta-ethnography, thematic synthesis,
+  framework synthesis, realist or critical interpretive synthesis. ENTREQ
+  reporting, JBI critical-appraisal-for-qual or CASP, GRADE-CERQual for
+  certainty of findings.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+  notes: ENTREQ (Tong et al. 2012) is the qualitative-synthesis-specific reporting standard.
+
+registries:
+  primary: OSF
+  alternatives: [PROSPERO]
+
+databases:
+  required: [pubmed, cinahl, psycinfo]
+  recommended: [scopus, web_of_science]
+
+extraction_template:
+  base: JBI_QUAL
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: methodology, label: "Methodology", type: select_one,
+       options: [phenomenology, grounded_theory, ethnography, case_study, narrative, mixed, other], required: true, group: design}
+    - {key: method, label: "Data collection method", type: select_one,
+       options: [interview, focus_group, observation, document, mixed, other], group: design}
+    - {key: participants, label: "Participants (n + characterisation)", type: longtext, required: true, group: pico}
+    - {key: setting, label: "Setting", type: text, group: pico}
+    - {key: aim, label: "Aim / research question", type: longtext, required: true, group: pico}
+    - {key: first_order_quotes, label: "First-order constructs (participant voice)", type: longtext, required: true, group: findings,
+       help: "Raw quotes / participant voices, in their own words."}
+    - {key: second_order_concepts, label: "Second-order concepts (author interpretation)", type: longtext, required: true, group: findings,
+       help: "Author's interpretations of the data, e.g. theme labels."}
+    - {key: third_order_synthesis, label: "Third-order synthesis (reviewer interpretation)", type: longtext, group: findings}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: CASP_QUAL
+
+effect_sizes:
+  default: none_narrative
+  allowed: [none_narrative]
+
+synthesis:
+  model_default: thematic
+  modules: [synthesis_findings_table, thematic_themes]
+  hk_adjustment_default: false
+  prediction_interval_default: false
+
+publication_bias:
+  required_methods: []
+  default_panel: []
+
+certainty:
+  framework: GRADE_CERQual
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: false
+  publication_bias: false
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: second_order_missing
+    severity: warn
+    message: >
+      Extracting only raw quotes (first-order constructs) breaks meta-ethnographic
+      reciprocal translation. Always capture the author's interpretive concepts
+      alongside the participant voice.
+
+citations:
+  - "Tong A et al. 2012. ENTREQ. BMC Med Res Methodol 12:181."
+  - "Lewin S et al. 2015. GRADE-CERQual. PLoS Med 12:e1001895."

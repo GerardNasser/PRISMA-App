@@ -1,0 +1,72 @@
+id: general__custom
+version: 0.2.0
+effective_date: "2026-05-13"
+field: general
+review_type: custom
+label: "General / custom — bring your own methodology"
+summary: >
+  Minimal preset — PRISMA 2020 + a generic extraction template + ROBINS-I.
+  Pick this when none of the field-specific profiles match your topic. Tune
+  defaults in the wizard.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+
+registries:
+  primary: OSF
+  alternatives: [PROSPERO]
+
+databases:
+  required: [pubmed]
+  recommended: [scopus, web_of_science]
+
+extraction_template:
+  base: PRISMA_GENERIC
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: country, label: "Country", type: text, group: source}
+    - {key: design, label: "Study design", type: text, required: true, group: design}
+    - {key: population, label: "Population", type: longtext, required: true, group: pico}
+    - {key: intervention_or_exposure, label: "Intervention / exposure", type: longtext, required: true, group: pico}
+    - {key: comparator, label: "Comparator", type: longtext, group: pico}
+    - {key: outcomes, label: "Outcomes", type: longtext, required: true, group: pico}
+    - {key: sample_size, label: "Sample size", type: integer, group: results}
+    - {key: results_summary, label: "Results (verbatim)", type: longtext, group: results}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: ROBINS_I
+
+effect_sizes:
+  default: smd_hedges_g
+  allowed: [smd_hedges_g, log_or, log_rr, log_hr, r, pcc, lnrr, none_narrative]
+
+synthesis:
+  model_default: random_effects_reml
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval]
+
+publication_bias:
+  required_methods: [egger]
+  default_panel: [egger, trim_fill_sensitivity]
+
+certainty:
+  framework: GRADE
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+citations:
+  - "Page MJ et al. 2021. The PRISMA 2020 statement. BMJ 372:n71."

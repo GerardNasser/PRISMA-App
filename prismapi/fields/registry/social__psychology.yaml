@@ -1,0 +1,87 @@
+id: social__psychology
+version: 0.2.0
+effective_date: "2026-05-13"
+field: social
+review_type: psychology
+label: "Psychology / behavioural science"
+summary: >
+  Meta-analyses in psychology and behavioural science. JARS-Quant reporting
+  (APA), Hedges' g or correlation r as default effect sizes, multi-method
+  publication bias diagnostics (Egger + p-curve + selection model).
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+  notes: APA JARS-Quant Table 9 covers the meta-analysis subset.
+
+registries:
+  primary: OSF
+  alternatives: [PROSPERO]
+
+databases:
+  required: [psycinfo, pubmed]
+  recommended: [web_of_science, scopus, eric]
+
+extraction_template:
+  base: JARS_QUANT
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: design, label: "Study design", type: select_one,
+       options: [rct, quasi_experimental, correlational, longitudinal, single_case, other], required: true, group: design}
+    - {key: population, label: "Population (age / setting)", type: longtext, group: pico}
+    - {key: predictor_or_intervention, label: "Predictor / intervention", type: longtext, required: true, group: pico}
+    - {key: outcome, label: "Outcome", type: longtext, required: true, group: pico}
+    - {key: n_total, label: "Total N", type: integer, group: results}
+    - {key: effect_size_type, label: "Effect size type", type: select_one,
+       options: [d, g, r, beta, or, rr, other], group: results}
+    - {key: effect_size_value, label: "Effect size value", type: number, group: results}
+    - {key: standard_error, label: "Standard error", type: number, group: results}
+    - {key: variance, label: "Variance", type: number, group: results}
+    - {key: reliability, label: "Reliability (Cronbach's α / ICC)", type: number, group: psychometrics,
+       help: "For psychometric correction in mgmt / I-O traditions."}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: ROBINS_I
+
+effect_sizes:
+  default: smd_hedges_g
+  allowed: [smd_hedges_g, r, rho_corrected, log_or]
+
+synthesis:
+  model_default: random_effects_reml
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval]
+
+publication_bias:
+  required_methods: [egger, p_curve]
+  default_panel: [egger, p_curve, selection_vevea]
+
+certainty:
+  framework: narrative_only
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: replication_crisis
+    severity: info
+    message: >
+      Psychology has documented publication bias and p-hacking issues
+      (Open Science Collab 2015). Report multiple pub-bias methods and
+      consider p-curve / selection-model approaches.
+
+citations:
+  - "Appelbaum M et al. 2018. JARS-Quant. American Psychologist 73(1):3-25."
+  - "Open Science Collaboration 2015. Estimating the reproducibility of psychological science. Science 349:aac4716."

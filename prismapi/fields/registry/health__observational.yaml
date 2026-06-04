@@ -1,0 +1,85 @@
+id: health__observational
+version: 0.2.0
+effective_date: "2026-05-13"
+field: health
+review_type: observational
+label: "Health sciences — Observational / Etiology"
+summary: >
+  Reviews of cohort, case-control, and cross-sectional studies. ROBINS-E for
+  exposure / etiology questions, ROBINS-I when interpreting observational
+  evidence on interventions.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+
+registries:
+  primary: PROSPERO
+  alternatives: [OSF]
+
+databases:
+  required: [pubmed, embase]
+  recommended: [web_of_science, scopus, cinahl, psycinfo]
+
+extraction_template:
+  base: PRISMA_GENERIC
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: pmid, label: "PMID", type: text, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: journal, label: "Journal", type: text, group: source}
+    - {key: country, label: "Country", type: text, group: source}
+    - {key: design, label: "Study design", type: select_one,
+       options: [cohort_prospective, cohort_retrospective, case_control, cross_sectional, nested_case_control, ecological, other], required: true, group: design}
+    - {key: population, label: "Population", type: longtext, required: true, group: pico}
+    - {key: exposure, label: "Exposure / risk factor", type: longtext, required: true, group: pico}
+    - {key: comparator, label: "Comparator / reference group", type: longtext, group: pico}
+    - {key: outcomes, label: "Outcomes", type: longtext, required: true, group: pico}
+    - {key: n_total, label: "Total N", type: integer, group: results}
+    - {key: followup_duration, label: "Follow-up duration", type: text, group: results}
+    - {key: confounders_adjusted, label: "Confounders adjusted for", type: longtext, group: design}
+    - {key: effect_estimate, label: "Effect estimate (verbatim)", type: longtext, group: results}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: ROBINS_E
+
+effect_sizes:
+  default: log_or
+  allowed: [log_or, log_rr, log_hr, smd_hedges_g, md]
+
+synthesis:
+  model_default: random_effects_reml
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval]
+
+publication_bias:
+  required_methods: [egger, trim_fill_sensitivity]
+  default_panel: [egger, trim_fill_sensitivity]
+
+certainty:
+  framework: GRADE
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: residual_confounding
+    severity: info
+    message: >
+      Observational data are subject to residual and unmeasured confounding.
+      GRADE typically starts at "low" certainty for observational evidence.
+
+citations:
+  - "Page MJ et al. 2021. PRISMA 2020. BMJ 372:n71."
+  - "Higgins JPT et al. 2024. ROBINS-E for observational studies of exposures."

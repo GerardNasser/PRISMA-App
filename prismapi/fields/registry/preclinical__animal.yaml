@@ -1,0 +1,96 @@
+id: preclinical__animal
+version: 0.2.0
+effective_date: "2026-05-13"
+field: preclinical
+review_type: animal
+label: "Preclinical / animal studies"
+summary: >
+  Systematic reviews of in-vivo animal studies. SYRCLE risk of bias (10
+  domains, three of which are animal-specific). Publication bias is severe
+  in preclinical (Sena et al. 2010) — the panel is mandatory.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+  notes: ARRIVE 2.0 is the underlying primary-study reporting standard you'll extract against.
+
+registries:
+  primary: PROSPERO
+  alternatives: [OSF]
+
+databases:
+  required: [pubmed, embase, web_of_science]
+  recommended: [biosis]
+  auto_filters: [hooijmans_pubmed_animal, de_vries_embase_animal]
+
+extraction_template:
+  base: ARRIVE
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: pmid, label: "PMID", type: text, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: species, label: "Species", type: text, required: true, group: animals}
+    - {key: strain, label: "Strain", type: text, required: true, group: animals}
+    - {key: sex, label: "Sex", type: select_one,
+       options: [male, female, mixed, not_reported], required: true, group: animals}
+    - {key: n_per_group, label: "N per group", type: integer, group: design}
+    - {key: model, label: "Disease / experimental model", type: longtext, group: design}
+    - {key: intervention, label: "Intervention", type: longtext, required: true, group: design}
+    - {key: comparator, label: "Comparator (sham, vehicle, etc.)", type: text, group: design}
+    - {key: randomisation, label: "Randomisation method", type: text, group: design}
+    - {key: blinding_caregivers, label: "Caregivers / investigators blinded", type: boolean, group: design}
+    - {key: blinding_outcome, label: "Outcome assessor blinded", type: boolean, group: design}
+    - {key: primary_outcome, label: "Primary outcome", type: longtext, required: true, group: results}
+    - {key: effect_estimate, label: "Effect estimate (verbatim)", type: longtext, group: results}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: SYRCLE
+
+effect_sizes:
+  default: smd_hedges_g
+  allowed: [smd_hedges_g, nmd, log_or, log_rr]
+
+synthesis:
+  model_default: random_effects_reml
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval]
+
+publication_bias:
+  required_methods: [egger, trim_fill_sensitivity, tes]
+  default_panel: [egger, trim_fill_sensitivity, tes]
+  mandatory: true
+
+certainty:
+  framework: GRADE_animal_no_large_effect_upgrade
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: small_studies_inflate
+    severity: warn
+    message: >
+      Preclinical median n≈8/group. Underpowered primaries plus selective
+      reporting inflate pooled estimates; the publication-bias panel is
+      mandatory for this field.
+  - key: no_grade_upgrade
+    severity: info
+    message: >
+      Large effects from animal studies do NOT qualify for GRADE upgrades.
+      Indirectness (animal → human) is intrinsic.
+
+citations:
+  - "Hooijmans CR et al. 2014. SYRCLE's risk of bias tool. BMC Med Res Methodol 14:43."
+  - "Percie du Sert N et al. 2020. ARRIVE 2.0. PLoS Biol 18(7):e3000410."
+  - "Sena ES et al. 2010. Stroke publication bias. PLoS Biol 8:e1000344."

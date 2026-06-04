@@ -1,0 +1,108 @@
+id: social__economics
+version: 0.2.0
+effective_date: "2026-05-13"
+field: social
+review_type: economics
+label: "Economics / management meta-regression"
+summary: >
+  Meta-regression of empirical economics / business studies. Partial
+  correlation coefficient as the standardised effect size. Publication-bias
+  diagnostics central — MAIVE recommended over PET-PEESE under specification
+  search and p-hacking around z=1.96.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S]
+  notes: MAER-Net reporting guidelines layer on top of PRISMA 2020.
+
+registries:
+  primary: OSF
+  alternatives: [PROSPERO]
+
+databases:
+  required: [econlit, repec, ssrn]
+  recommended: [web_of_science, scopus, nber]
+
+extraction_template:
+  base: MAER_NET
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: publication_status, label: "Publication status", type: select_one,
+       options: [peer_reviewed, working_paper, book_chapter, dissertation, conference], required: true, group: source}
+    - {key: country_region, label: "Country / region", type: text, group: design}
+    - {key: identification_strategy, label: "Identification strategy", type: select_one,
+       options: [rct, did, rdd, iv, fe_panel, ols_controls, structural, other], required: true, group: design}
+    - {key: outcome_variable, label: "Outcome variable", type: text, required: true, group: pico}
+    - {key: treatment_variable, label: "Treatment / predictor", type: text, required: true, group: pico}
+    - {key: effect_size, label: "Reported effect size", type: number, required: true, group: estimate}
+    - {key: standard_error, label: "Standard error", type: number, required: true, group: estimate}
+    - {key: t_stat, label: "t-statistic", type: number, group: estimate}
+    - {key: sample_size, label: "Sample size", type: integer, required: true, group: estimate}
+    - {key: degrees_of_freedom, label: "Degrees of freedom", type: integer, group: estimate}
+    - {key: preferred_estimate, label: "Author-preferred estimate?", type: boolean, group: estimate}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: CUSTOM
+  domains:
+    - {key: identification, label: "Identification credibility", help: "Is the causal identification credible (clean RCT, valid IV, parallel trends)?"}
+    - {key: spec_searching, label: "Specification searching", help: "Evidence of p-hacking around z=1.96? Number of specs reported?"}
+    - {key: data_quality, label: "Data quality / measurement", help: "Sample representative? Measurement error?"}
+    - {key: outcome_reporting, label: "Outcome reporting", help: "All outcomes / specs reported?"}
+    - {key: transparency, label: "Replication transparency", help: "Replication data + code available?"}
+    - {key: conflicts, label: "Conflicts of interest", help: "Funding source disclosed and unconflicted?"}
+  scale: [low, some_concerns, high, no_information]
+
+effect_sizes:
+  default: pcc
+  allowed: [pcc, log_or, md, none_narrative]
+  transform_notes: >
+    Partial correlation coefficient standardises across regression specifications.
+    Compute from t-statistic and degrees of freedom when not directly reported.
+
+synthesis:
+  model_default: random_effects_reml
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval]
+
+publication_bias:
+  required_methods: [egger, maive, pet_peese, z_curve]
+  default_panel: [maive, pet_peese, egger, z_curve, top_10_precise]
+  mandatory: true
+
+certainty:
+  framework: narrative_only
+  notes: No GRADE analog has stuck in economics. Report uncorrected + publication-bias-adjusted side by side.
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+qrp_warnings:
+  - key: spec_searching
+    severity: warn
+    message: >
+      Specification searching and p-hacking around z=1.96 are documented in
+      economics (Brodeur et al. 2016, 2020). Apply MAIVE or PET-PEESE; report
+      caliper test and z-curve.
+  - key: working_papers
+    severity: info
+    message: >
+      Working papers (NBER, IZA, CEPR, SSRN) are non-optional in economics —
+      searches restricted to peer-reviewed journals systematically miss the
+      frontier.
+
+citations:
+  - "Stanley TD, Doucouliagos H. 2012. Meta-Regression Analysis in Economics and Business. Routledge."
+  - "Irsova Z, Bom PRD, Havranek T, Rachinger H. 2024+. MAIVE: Spurious precision in meta-analysis."
+  - "Brodeur A et al. 2016. Star wars: The empirics strike back. AEJ:Applied 8(1):1-32."

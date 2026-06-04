@@ -1,0 +1,79 @@
+id: health__diagnostic
+version: 0.2.0
+effective_date: "2026-05-13"
+field: health
+review_type: diagnostic
+label: "Health sciences — Diagnostic test accuracy"
+summary: >
+  Diagnostic test accuracy reviews. PRISMA-DTA reporting, QUADAS-2 for
+  risk of bias, bivariate / hierarchical SROC pooling of sensitivity and
+  specificity.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_DTA, PRISMA_S]
+
+registries:
+  primary: PROSPERO
+  alternatives: [OSF]
+
+databases:
+  required: [pubmed, embase]
+  recommended: [web_of_science, scopus]
+
+extraction_template:
+  base: PRISMA_GENERIC
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: pmid, label: "PMID", type: text, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: design, label: "Study design", type: select_one,
+       options: [cross_sectional, case_control_dta, cohort_dta, other], required: true, group: design}
+    - {key: target_condition, label: "Target condition", type: longtext, required: true, group: pico}
+    - {key: population, label: "Population / patient spectrum", type: longtext, required: true, group: pico}
+    - {key: index_test, label: "Index test", type: longtext, required: true, group: pico}
+    - {key: reference_standard, label: "Reference standard", type: longtext, required: true, group: pico}
+    - {key: n_total, label: "Total N", type: integer, group: results}
+    - {key: tp, label: "True positives", type: integer, group: results}
+    - {key: fp, label: "False positives", type: integer, group: results}
+    - {key: fn, label: "False negatives", type: integer, group: results}
+    - {key: tn, label: "True negatives", type: integer, group: results}
+    - {key: sensitivity, label: "Sensitivity (reported)", type: number, group: results}
+    - {key: specificity, label: "Specificity (reported)", type: number, group: results}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: QUADAS_2
+
+effect_sizes:
+  default: auc_reitsma
+  allowed: [auc_reitsma, log_or, none_narrative]
+
+synthesis:
+  model_default: random_effects_reml
+  modules: [forest, funnel, subgroup, meta_regression, prediction_interval]
+
+publication_bias:
+  required_methods: [egger]
+  default_panel: [egger]
+
+certainty:
+  framework: GRADE
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+
+citations:
+  - "McInnes MDF et al. 2018. PRISMA-DTA. JAMA 319(4):388-396."
+  - "Whiting PF et al. 2011. QUADAS-2. Ann Intern Med 155:529-536."

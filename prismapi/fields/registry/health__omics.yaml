@@ -1,0 +1,104 @@
+id: health__omics
+version: 0.2.0
+effective_date: "2026-05-13"
+field: health
+review_type: omics
+label: "Health sciences — Genomics / Microbiome / Omics"
+summary: >
+  Reviews of microbiome, genomic, or other -omics studies. STORMS-aware
+  extraction so primer / platform / pipeline differences are captured. Be
+  cautious about pooling across non-comparable measurement protocols.
+
+reporting:
+  primary: PRISMA_2020
+  extensions: [PRISMA_S, STORMS]
+
+registries:
+  primary: PROSPERO
+  alternatives: [OSF]
+
+databases:
+  required: [pubmed, embase, web_of_science]
+  recommended: [scopus, sra, ena]
+
+extraction_template:
+  base: STORMS
+  fields:
+    - {key: study_id, label: "Study ID", type: text, required: true, group: source}
+    - {key: doi, label: "DOI", type: doi, group: source}
+    - {key: pmid, label: "PMID", type: text, group: source}
+    - {key: title, label: "Title", type: text, required: true, group: source}
+    - {key: authors, label: "Authors", type: text, required: true, group: source}
+    - {key: year, label: "Year", type: integer, required: true, group: source}
+    - {key: study_design, label: "Study design", type: select_one,
+       options: [cross_sectional, case_control, cohort, rct, longitudinal, mixed], required: true, group: design}
+    - {key: population, label: "Population", type: longtext, required: true, group: pico}
+    - {key: sample_type, label: "Sample type (stool, skin, air, soil, …)", type: text, required: true, group: design}
+    - {key: n_total, label: "Total N", type: integer, group: design}
+    - {key: omics_type, label: "Omics type", type: select_one,
+       options: [16s, 18s, its, shotgun_metagenomics, rna_seq, single_cell, wes, wgs, methylation, proteomics, metabolomics, other], required: true, group: lab}
+    - {key: platform, label: "Sequencing platform", type: text, group: lab,
+       help: "e.g. Illumina MiSeq 2×250, NovaSeq, NanoPore."}
+    - {key: primer_or_region, label: "Primer / region / target", type: text, group: lab,
+       help: "e.g. 515F/806R, V3-V4, 10x 3' v3."}
+    - {key: pipeline, label: "Analysis pipeline + version", type: text, group: bioinformatics,
+       help: "e.g. QIIME2 + DADA2 v2024.5, SILVA 138.1."}
+    - {key: contamination_controlled, label: "Contamination controls reported", type: boolean, group: bioinformatics,
+       help: "Negative controls + Decontam / equivalent."}
+    - {key: data_accession, label: "Data accession (SRA / ENA / GEO)", type: accession, group: data}
+    - {key: data_public, label: "Raw data publicly available", type: boolean, group: data}
+    - {key: outcome_summary, label: "Outcome summary", type: longtext, group: results}
+    - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
+
+risk_of_bias:
+  tool: ROBINS_E
+
+effect_sizes:
+  default: smd_hedges_g
+  allowed: [smd_hedges_g, lnrr, log_or, log_rr, none_narrative]
+  transform_notes: >
+    For diversity metrics (Shannon, Simpson, etc.), the standardised mean
+    difference between cases and controls is the most defensible pooled outcome.
+
+synthesis:
+  model_default: random_effects_reml
+  modules: [forest, funnel, leave_one_out, subgroup, meta_regression, knapp_hartung, prediction_interval]
+
+publication_bias:
+  required_methods: [egger]
+  default_panel: [egger, trim_fill_sensitivity]
+
+certainty:
+  framework: GRADE
+  notes: "Downgrade for primer / pipeline heterogeneity when present."
+
+modules:
+  screening: true
+  irr: true
+  extraction: true
+  risk_of_bias: true
+  synthesis_quantitative: true
+  publication_bias: true
+  certainty: true
+  prisma_flow: true
+  manuscript_export: true
+  microbiome_pipeline: true
+
+qrp_warnings:
+  - key: cross_platform_pooling
+    severity: warn
+    message: >
+      Different sequencing platforms / primer pairs / analysis pipelines yield
+      systematically different abundances and diversity. Pool at a coarse
+      enough taxonomic rank, stratify by methodology, or vote-count when
+      quantitative pooling isn't defensible.
+  - key: low_biomass_contamination
+    severity: warn
+    message: >
+      Low-biomass samples (lung, skin, placenta, indoor air) are dominated by
+      reagent contamination (Salter et al. 2014). Insist on reported negative
+      controls and a Decontam-style filter.
+
+citations:
+  - "Mirzayi C et al. 2021. STORMS reporting guideline. Nat Med 27:1885-1892."
+  - "Salter SJ et al. 2014. Reagent and laboratory contamination. BMC Biol 12:87."

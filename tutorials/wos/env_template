@@ -1,0 +1,9 @@
+## WoS
+API_KEY = '' # Replace with your actual key
+database_code = 'WOK'
+page_limit = 50
+page_max = 5
+sort_field = 'LD'
+ascending = 'true' # or 'false' or ''
+base_url = 'https://api.clarivate.com/apis/wos-starter/v1/documents'
+search_phrase = '"climate change" OR "global warming" AND sustainability'
