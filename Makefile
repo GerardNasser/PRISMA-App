@@ -1,47 +1,30 @@
-.PHONY: help dev up down api web test lint typecheck migrate clean
+.PHONY: help run test lint fields-validate build clean
 
 help:
 	@echo "Targets:"
-	@echo "  up         start full stack via docker compose"
-	@echo "  down       stop the stack"
-	@echo "  api        run api locally (no docker)"
-	@echo "  web        run web locally (no docker)"
-	@echo "  test       run all backend tests"
-	@echo "  lint       ruff + eslint"
-	@echo "  typecheck  mypy + tsc"
-	@echo "  migrate    apply alembic migrations"
-	@echo "  fields-validate  validate all field config YAMLs against schema"
+	@echo "  run              start the desktop app from source"
+	@echo "  test             run the test suite"
+	@echo "  lint             ruff check on the engine, GUI, and tests"
+	@echo "  fields-validate  validate all field config YAMLs against the schema"
+	@echo "  build            PyInstaller bundle (.app/.dmg on macOS, .exe on Windows)"
+	@echo "  clean            remove caches"
 
-up:
-	docker compose up --build
-
-down:
-	docker compose down
-
-api:
-	cd apps/api && uv run uvicorn prismapi.main:app --reload --host 0.0.0.0 --port 8000
-
-web:
-	cd apps/web && npm run dev
+run:
+	python3 app.py
 
 test:
-	cd apps/api && uv run pytest -q
+	python3 -m pytest tests/ -q
 
 lint:
-	cd apps/api && uv run ruff check src tests
-	cd apps/web && npm run lint || true
-
-typecheck:
-	cd apps/api && uv run mypy src
-
-migrate:
-	cd apps/api && uv run alembic upgrade head
+	python3 -m ruff check prismapi gui tests app.py build.py
 
 fields-validate:
-	cd apps/api && uv run python -m prismapi.fields.validate
+	python3 -m prismapi.fields.validate
+
+build:
+	python3 build.py
 
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	find . -type d -name .pytest_cache -prune -exec rm -rf {} +
-	find . -type d -name .mypy_cache -prune -exec rm -rf {} +
 	find . -type d -name .ruff_cache -prune -exec rm -rf {} +
