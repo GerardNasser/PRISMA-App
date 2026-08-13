@@ -15,11 +15,10 @@ Platform: macOS and Windows (Linux from source)
 | `gui/` | The desktop UI (CustomTkinter). Screens for onboarding, projects, the wizard, and the per-phase workspace. |
 | `prismapi/` | The engine: SQLite models, services, RPC handlers, field-config registry. |
 | `prismapi/fields/registry/` | 12 ready-to-use field configs (YAML) plus the JSON Schema that validates them. |
-| `tests/` | 89 tests against the engine. |
+| `tests/` | 87 tests against the engine. |
 | `tutorials/` | Jupyter notebooks teaching the PubMed, ScienceDirect, and Web of Science APIs. |
 | `docs/` | Architecture notes and the PRISMA 2020 reference PDFs. |
-| `build.py`, `PrismAPI.spec` | PyInstaller build for `.app` / `.exe` / `.dmg`. |
-| `dist/PrismAPI-0.1.0-beta.1-macos.zip` | Pre-built macOS bundle, ready to run. |
+| `build.py` | PyInstaller build for `.app` / `.exe` / `.dmg`. |
 
 The engine and GUI both live in this one repo and run in the same process — no separate sidecar, no listening sockets, no Docker.
 
@@ -29,7 +28,9 @@ The engine and GUI both live in this one repo and run in the same process — no
 
 ### macOS — pre-built bundle
 
-1. Unzip `dist/PrismAPI-0.1.0-beta.1-macos.zip`.
+A pre-built bundle is not tracked in this repo (`dist/` is gitignored). Download `PrismAPI-0.1.0-beta.1-macos.zip` from the GitHub Releases page, or build it yourself with `python build.py` (see "Building from source" below). Then:
+
+1. Unzip it.
 2. Drag `PrismAPI.app` into `/Applications` (or run it from wherever you unzipped).
 3. First launch: Gatekeeper will warn — right-click → Open → Open. The app isn't code-signed for v1.
 
@@ -199,9 +200,9 @@ pip install pytest pytest-asyncio
 pytest -q
 ```
 
-89 tests cover the engine: identity, projects, members, screening, IRR, dedup, extraction, RoB, audit, snapshots, trash, statefile export/import/merge, fields registry validation, and the search adapters.
+87 tests cover the engine: identity, projects, members, screening, IRR, dedup, extraction, RoB, audit, snapshots, trash, statefile export/import/merge, fields registry validation, and RIS import. The HTTP search adapters (PubMed, OpenAlex, CrossRef) are not covered beyond catalog registration.
 
-The GUI is intentionally not unit-tested — it's a thin synchronous wrapper around the same RPC dispatcher the tests hit directly.
+The GUI is mostly untested — 4 tests cover one screening-rules helper. The screens are thin synchronous wrappers around the same RPC dispatcher the engine tests hit directly.
 
 ---
 
@@ -224,7 +225,7 @@ jupyter lab pubmed/PubMed_API.ipynb
 
 1. Copy any YAML in `prismapi/fields/registry/` as a starting point.
 2. Set `id: <field>__<review_type>`, `version`, `effective_date`, `label`, `summary`.
-3. Fill in the eight required sections: reporting, registries, databases, extraction template, risk-of-bias tool, effect sizes, synthesis, publication bias, certainty.
+3. Fill in the ten required sections: reporting, registries, databases, extraction template, risk-of-bias tool, effect sizes, synthesis, publication bias, certainty, and modules.
 4. Add any `qrp_warnings` and `citations`.
 5. Validate:
 
