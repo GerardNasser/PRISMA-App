@@ -99,6 +99,12 @@ class ProjectsFrame(ctk.CTkFrame):
                 "Restore",
                 command=lambda pid=p["id"]: self._restore(pid),
             ).pack(side="right")
+        else:
+            GhostButton(
+                top,
+                "Delete",
+                command=lambda pid=p["id"], name=p["name"]: self._delete(pid, name),
+            ).pack(side="right")
 
         meta = ctk.CTkFrame(inner, fg_color="transparent")
         meta.pack(fill="x", pady=(6, 0))
@@ -119,3 +125,20 @@ class ProjectsFrame(ctk.CTkFrame):
             self.refresh()
         except Exception as e:  # noqa: BLE001
             self.app.toast("Couldn't restore", str(e), variant="danger")
+
+    def _delete(self, project_id: str, name: str) -> None:
+        from tkinter import messagebox
+
+        if not messagebox.askyesno(
+            "Move to trash",
+            f'Move "{name}" to the trash?\n\n'
+            "It stays restorable for 30 days from the trash view.",
+            parent=self,
+        ):
+            return
+        try:
+            self.app.rpc.call("projects.soft_delete", {"project_id": project_id})
+            self.app.toast("Project moved to trash", variant="ok")
+            self.refresh()
+        except Exception as e:  # noqa: BLE001
+            self.app.toast("Couldn't delete", str(e), variant="danger")

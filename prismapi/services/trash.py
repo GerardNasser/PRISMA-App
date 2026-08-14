@@ -12,6 +12,8 @@ import uuid
 from datetime import timedelta
 from typing import Any
 
+import shutil
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +24,9 @@ from prismapi.db.models import (
     Extraction,
     Project,
     Protocol,
+    Record,
+    RecordCluster,
+    RecordClusterMember,
     RoBAssessment,
     ScreeningDecision,
     Search,
@@ -141,6 +146,55 @@ def _summarise(row: Any, kind: str) -> str:
     return str(row.id)
 
 
+async def _detach_clusters_from_searches(
+    session: AsyncSession, search_ids: list[uuid.UUID]
+) -> None:
+    """Prepare clusters for the hard-delete of `search_ids`.
+
+    Deleting a search cascades its records away, but `canonical_record_id`
+    on clusters is RESTRICT, so any cluster whose canonical record belongs
+    to a doomed search must first be re-pointed to a surviving member — or
+    deleted outright when no member survives.
+    """
+    if not search_ids:
+        return
+    doomed_records = set(
+        await session.scalars(select(Record.id).where(Record.search_id.in_(search_ids)))
+    )
+    if not doomed_records:
+        return
+    clusters = (
+        await session.execute(
+            select(RecordCluster).where(
+                RecordCluster.canonical_record_id.in_(doomed_records)
+            )
+        )
+    ).scalars().all()
+    for cluster in clusters:
+        member_ids = list(
+            await session.scalars(
+                select(RecordClusterMember.record_id).where(
+                    RecordClusterMember.cluster_id == cluster.id
+                )
+            )
+        )
+        survivors = [rid for rid in member_ids if rid not in doomed_records]
+        if not survivors:
+            await session.delete(cluster)
+            continue
+        cluster.canonical_record_id = survivors[0]
+        cluster.size = len(survivors)
+        graph = cluster.merge_graph or {}
+        members = graph.get("members", [])
+        doomed_strs = {str(rid) for rid in doomed_records}
+        graph = {
+            **graph,
+            "members": [m for m in members if m.get("record_id") not in doomed_strs],
+        }
+        cluster.merge_graph = graph
+    await session.flush()
+
+
 async def empty_trash(
     session: AsyncSession,
     *,
@@ -156,6 +210,7 @@ async def empty_trash(
     cutoff = utcnow() - timedelta(days=get_settings().trash_retention_days)
     deleted: dict[str, int] = {}
     project_being_deleted = False
+    deleted_project_ids: list[uuid.UUID] = []
     for name, model in _TRASHABLE.items():
         q = select(model).where(model.deleted_at.is_not(None))
         if age_only:
@@ -165,11 +220,14 @@ async def empty_trash(
         if project_id is not None and model is Project:
             q = q.where(model.id == project_id)
         rows = (await session.execute(q)).scalars().all()
+        if model is Search:
+            await _detach_clusters_from_searches(session, [r.id for r in rows])
         for r in rows:
             await session.delete(r)
         deleted[name] = len(rows)
         if model is Project and rows:
             project_being_deleted = True
+            deleted_project_ids = [r.id for r in rows]
     # If the project itself was hard-deleted, audit at the no-project scope.
     await record_audit(
         session,
@@ -185,4 +243,9 @@ async def empty_trash(
         },
     )
     await session.commit()
+    # Snapshot rows cascade with the project; their files on disk do not.
+    for pid in deleted_project_ids:
+        snap_dir = get_settings().snapshots_dir / str(pid)
+        if snap_dir.exists():
+            shutil.rmtree(snap_dir, ignore_errors=True)
     return deleted
