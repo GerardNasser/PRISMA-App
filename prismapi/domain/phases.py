@@ -1,8 +1,8 @@
 """Canonical PRISMA-2020 phase order and successor logic for PrismAPI.
 
 The phase model drives sidebar lock state and the per-phase "Mark as done"
-gate. Pure logic — no I/O. Database-backed gate predicates live in
-prismapi/services/phase_completion.py (added in a later plan).
+gate. Pure logic — no I/O. The database-backed gate predicates live in
+prismapi/services/phase_completion.py.
 """
 
 from __future__ import annotations
@@ -97,6 +97,8 @@ def gate_satisfied(phase: Phase, state: GateState) -> tuple[bool, str]:
             )
         return True, ""
     if phase == Phase.EXTRACTION:
+        if state.n_raters == 0:
+            return False, "Enroll at least one rater first."
         if state.n_ft_done_raters < state.n_raters:
             return False, (
                 f"Full-text screening incomplete: "
