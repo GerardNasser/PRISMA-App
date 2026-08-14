@@ -5,12 +5,41 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prismapi.db.models import Project, Record, RecordCluster, RecordClusterMember
+from prismapi.db.models import (
+    Extraction,
+    Project,
+    Record,
+    RecordCluster,
+    RecordClusterMember,
+    RoBAssessment,
+    ScreeningDecision,
+    Search,
+)
 from prismapi.domain.dedup import RecordSnapshot, cluster_records
+from prismapi.rpc.errors import VALIDATION, RpcError
 from prismapi.services.audit import record_audit
+
+
+async def screening_work_counts(session: AsyncSession, project_id: uuid.UUID) -> dict:
+    """Live screening, extraction, and RoB rows that a cluster reset would delete."""
+    counts = {}
+    for name, model in (
+        ("screening_decisions", ScreeningDecision),
+        ("extractions", Extraction),
+        ("rob_assessments", RoBAssessment),
+    ):
+        counts[name] = (
+            await session.scalar(
+                select(func.count(model.id)).where(
+                    model.project_id == project_id,
+                    model.deleted_at.is_(None),
+                )
+            )
+        ) or 0
+    return counts
 
 
 def _completeness(r: Record) -> int:
@@ -27,17 +56,45 @@ async def run_dedup(
     project: Project,
     user_id: uuid.UUID | None,
     reset: bool = True,
+    force: bool = False,
 ) -> dict:
     """Rebuild the dedup clusters for the project from scratch.
+
+    Deleting clusters cascades to every screening decision, extraction, and
+    RoB assessment attached to them. If any such work exists, the reset is
+    refused unless `force` is set; a forced reset takes a snapshot first.
 
     Returns a summary: {input, output, by_method, reduction_pct}.
     """
     if reset:
+        work = await screening_work_counts(session, project.id)
+        if any(work.values()):
+            if not force:
+                raise RpcError(
+                    VALIDATION,
+                    "Re-running dedup deletes existing screening, extraction, and "
+                    "risk-of-bias work. Pass force=true to proceed; a snapshot is "
+                    "taken first.",
+                    {"would_delete": work},
+                )
+            from prismapi.services.snapshot import take_snapshot  # lazy to avoid cycle
+
+            await take_snapshot(
+                session,
+                project=project,
+                kind="pre_dedup",
+                actor_identity_id=user_id,
+            )
         await session.execute(
             delete(RecordCluster).where(RecordCluster.project_id == project.id)
         )
 
-    rows = await session.execute(select(Record).where(Record.project_id == project.id))
+    # Records whose search sits in the trash are excluded from clustering.
+    rows = await session.execute(
+        select(Record)
+        .join(Search, Record.search_id == Search.id)
+        .where(Record.project_id == project.id, Search.deleted_at.is_(None))
+    )
     records = list(rows.scalars().all())
     snapshots = [
         RecordSnapshot(

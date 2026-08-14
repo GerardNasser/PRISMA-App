@@ -9,11 +9,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prismapi.db.models import (
+    ConflictResolution,
+    Extraction,
     Project,
     ProjectMember,
     Record,
     RecordCluster,
     RecordClusterMember,
+    RoBAssessment,
+    ScreeningDecision,
 )
 from prismapi.rpc.dispatcher import rpc
 from prismapi.rpc.errors import NOT_FOUND, VALIDATION, RpcError
@@ -42,6 +46,7 @@ async def _assert_member(
 
 class DedupRun(BaseModel):
     project_id: str
+    force: bool = False
 
 
 @rpc("dedup.run")
@@ -49,7 +54,9 @@ async def run(
     params: DedupRun, session: AsyncSession, identity_id: uuid.UUID
 ) -> dict:
     project = await _assert_member(session, uuid.UUID(params.project_id), identity_id)
-    return await run_dedup(session, project=project, user_id=identity_id, reset=True)
+    return await run_dedup(
+        session, project=project, user_id=identity_id, reset=True, force=params.force
+    )
 
 
 class ClustersList(BaseModel):
@@ -116,6 +123,97 @@ async def clusters(
     return {"clusters": out}
 
 
+async def _migrate_cluster_work(
+    session: AsyncSession,
+    losing_id: uuid.UUID,
+    canonical_id: uuid.UUID,
+    migrated: dict[str, int],
+    dropped: dict[str, int],
+) -> None:
+    """Re-point screening/extraction/RoB work from a merged-away cluster.
+
+    Rows that would collide with an existing row on the canonical cluster
+    (same reviewer, and stage where applicable) are deleted instead — the
+    canonical cluster's copy wins.
+    """
+    decision_rows = (
+        await session.execute(
+            select(ScreeningDecision).where(ScreeningDecision.cluster_id == losing_id)
+        )
+    ).scalars().all()
+    for row in decision_rows:
+        clash = await session.scalar(
+            select(ScreeningDecision.id).where(
+                ScreeningDecision.cluster_id == canonical_id,
+                ScreeningDecision.reviewer_identity_id == row.reviewer_identity_id,
+                ScreeningDecision.stage == row.stage,
+            )
+        )
+        if clash:
+            await session.delete(row)
+            dropped["decisions"] += 1
+        else:
+            row.cluster_id = canonical_id
+            migrated["decisions"] += 1
+
+    extraction_rows = (
+        await session.execute(select(Extraction).where(Extraction.cluster_id == losing_id))
+    ).scalars().all()
+    for row in extraction_rows:
+        clash = await session.scalar(
+            select(Extraction.id).where(
+                Extraction.cluster_id == canonical_id,
+                Extraction.reviewer_identity_id == row.reviewer_identity_id,
+            )
+        )
+        if clash:
+            await session.delete(row)
+            dropped["extractions"] += 1
+        else:
+            row.cluster_id = canonical_id
+            migrated["extractions"] += 1
+
+    rob_rows = (
+        await session.execute(
+            select(RoBAssessment).where(RoBAssessment.cluster_id == losing_id)
+        )
+    ).scalars().all()
+    for row in rob_rows:
+        clash = await session.scalar(
+            select(RoBAssessment.id).where(
+                RoBAssessment.cluster_id == canonical_id,
+                RoBAssessment.reviewer_identity_id == row.reviewer_identity_id,
+            )
+        )
+        if clash:
+            await session.delete(row)
+            dropped["rob"] += 1
+        else:
+            row.cluster_id = canonical_id
+            migrated["rob"] += 1
+
+    resolution_rows = (
+        await session.execute(
+            select(ConflictResolution).where(ConflictResolution.cluster_id == losing_id)
+        )
+    ).scalars().all()
+    for row in resolution_rows:
+        clash = await session.scalar(
+            select(ConflictResolution.id).where(
+                ConflictResolution.cluster_id == canonical_id,
+                ConflictResolution.stage == row.stage,
+            )
+        )
+        if clash:
+            await session.delete(row)
+            dropped["resolutions"] += 1
+        else:
+            row.cluster_id = canonical_id
+            migrated["resolutions"] += 1
+
+    await session.flush()
+
+
 class ManualMerge(BaseModel):
     project_id: str
     cluster_ids: list[str]
@@ -149,6 +247,8 @@ async def manual_merge(
         clusters[0],
     )
     new_members: list[dict] = []
+    migrated: dict[str, int] = {"decisions": 0, "extractions": 0, "rob": 0, "resolutions": 0}
+    dropped: dict[str, int] = {"decisions": 0, "extractions": 0, "rob": 0, "resolutions": 0}
     for c in clusters:
         new_members.extend(c.merge_graph.get("members", []))
         if c.id != canonical.id:
@@ -159,6 +259,7 @@ async def manual_merge(
                 m.cluster_id = canonical.id
                 m.match_reason = "manual_merge"
                 m.match_score = 1.0
+            await _migrate_cluster_work(session, c.id, canonical.id, migrated, dropped)
             await session.delete(c)
     canonical.size = len(new_members)
     canonical.method = "manual_merge"
@@ -175,7 +276,12 @@ async def manual_merge(
         action="dedup.manual_merge",
         entity_type="cluster",
         entity_id=str(canonical.id),
-        payload={"merged_cluster_ids": params.cluster_ids, "notes": params.notes},
+        payload={
+            "merged_cluster_ids": params.cluster_ids,
+            "notes": params.notes,
+            "work_migrated": migrated,
+            "work_dropped_as_duplicate": dropped,
+        },
     )
     await session.commit()
     await session.refresh(canonical)
