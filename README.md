@@ -3,7 +3,7 @@
 A desktop app for running PRISMA-2020-compliant systematic reviews and meta-analyses on your own machine. Pick your field and review type once; the app picks the reporting checklist, databases, risk-of-bias tool, extraction template, effect-size default, and certainty framework for you.
 
 Version: **0.1.0-beta.1**
-Platform: macOS and Windows (Linux from source)
+Platform: macOS. Windows and Linux builds are planned; `build.py` has a Windows path, but no Windows build has been made or tested yet.
 
 ---
 
