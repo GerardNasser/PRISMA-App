@@ -28,6 +28,9 @@ async def execute_search(
 ) -> Search:
     """Execute a search and persist hits as Records under one Search row."""
     adapter = resolve_adapter(database)
+    # Captured up front: session.rollback() in the failure path expires the
+    # ORM instance, and touching project.id afterwards would lazy-load sync.
+    project_id = project.id
     cfg = field_registry.by_id(project.field_config_id)
     auto_filters: list[str] = []
     if cfg is not None:
@@ -93,19 +96,39 @@ async def execute_search(
                 await session.flush()
         search.status = "completed"
         search.hit_count = hit_count
-    except Exception as exc:  # noqa: BLE001 - capture for audit trail
-        search.status = "failed"
-        search.error = str(exc)
-        search.hit_count = hit_count
+    except Exception as exc:  # noqa: BLE001 - the attempt itself must be recorded
+        # Discard partial hits, then persist the failed attempt in its own
+        # transaction — PRISMA-S requires failed searches to leave a trace,
+        # and re-raising alone would have the dispatcher roll everything back.
+        await session.rollback()
+        failed = Search(
+            project_id=project_id,
+            actor_identity_id=user_id,
+            database=database,
+            query_string=query,
+            applied_filters=user_filters,
+            options=options or {},
+            status="failed",
+            error=str(exc),
+            executed_at=utcnow(),
+            hit_count=0,
+        )
+        session.add(failed)
+        await session.flush()
         await record_audit(
             session,
-            project_id=project.id,
+            project_id=project_id,
             actor_identity_id=user_id,
             action="search.fail",
             entity_type="search",
-            entity_id=str(search.id),
-            payload={"database": database, "error": str(exc)},
+            entity_id=str(failed.id),
+            payload={
+                "database": database,
+                "error": str(exc),
+                "hits_before_failure": hit_count,
+            },
         )
+        await session.commit()
         raise
 
     await record_audit(
