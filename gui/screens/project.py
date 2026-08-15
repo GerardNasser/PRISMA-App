@@ -24,6 +24,7 @@ PHASES = [
     ("search", "Search"),
     ("dedup", "De-duplicate"),
     ("screening", "Title/abstract"),
+    ("fulltext", "Full text"),
     ("extraction", "Extraction"),
     ("rob", "Risk of bias"),
     ("share", "Share / import"),
@@ -38,6 +39,7 @@ SLUG_TO_PHASE: dict[str, str] = {
     "search": "import",
     "dedup": "dedup",
     "screening": "title_abstract",
+    "fulltext": "full_text",
     "extraction": "extraction",
     "rob": "rob",
 }
@@ -55,6 +57,9 @@ class ProjectFrame(ctk.CTkFrame):
         self.phase = "overview"
         self.panels: dict[str, ctk.CTkFrame] = {}
         self.phase_state: list[dict] = []
+        # Registered so panels can ask the app to re-evaluate phase locks
+        # after a mutation (protocol save, dedup, screening completion).
+        app.active_project_frame = self
         self._load()
         self._build()
 
@@ -94,18 +99,18 @@ class ProjectFrame(ctk.CTkFrame):
             entry = state_by_phase.get(phase_id, {"open": True, "reason": ""}) if phase_id else {"open": True, "reason": ""}
             is_locked = not entry["open"]
             display_label = (LOCK_GLYPH + label) if is_locked else label
+            # Locked buttons stay clickable so the click can explain the lock.
             btn = ctk.CTkButton(
                 side,
                 text=display_label,
                 command=lambda s=slug, locked=is_locked, reason=entry["reason"]: self._on_phase_click(s, locked, reason),
                 anchor="w",
                 fg_color="transparent",
-                text_color=T.INK_SOFT,
+                text_color=T.INK_MUTE if is_locked else T.INK_SOFT,
                 hover_color="#e9e3d2",
                 corner_radius=6,
                 height=30,
                 font=T.FONT_BODY,
-                state=("disabled" if is_locked else "normal"),
             )
             btn.pack(fill="x", padx=8, pady=2)
             self.panels[slug + "_btn"] = btn
@@ -117,11 +122,7 @@ class ProjectFrame(ctk.CTkFrame):
 
     def _on_phase_click(self, slug: str, locked: bool, reason: str) -> None:
         if locked:
-            if reason:
-                try:
-                    self.app.toast(reason, variant="warn")
-                except Exception:
-                    pass
+            self.app.toast("Phase locked", reason or "Complete the earlier phases first.", variant="warn")
             return
         self._set_phase(slug)
 
@@ -137,6 +138,10 @@ class ProjectFrame(ctk.CTkFrame):
             )
         except Exception:
             self.phase_state = []
+        state_by_phase = {entry["phase"]: entry for entry in self.phase_state}
+        mapped = SLUG_TO_PHASE.get(self.phase)
+        if mapped and not state_by_phase.get(mapped, {"open": True})["open"]:
+            self.phase = "overview"
         for child in self.winfo_children():
             child.destroy()
         self.panels = {}
@@ -164,7 +169,9 @@ class ProjectFrame(ctk.CTkFrame):
         elif self.phase == "dedup":
             DedupPanel(self.content, self.app, self.project).pack(fill="both", expand=True)
         elif self.phase == "screening":
-            ScreeningPanel(self.content, self.app, self.project).pack(fill="both", expand=True)
+            ScreeningPanel(self.content, self.app, self.project, stage="title_abstract").pack(fill="both", expand=True)
+        elif self.phase == "fulltext":
+            ScreeningPanel(self.content, self.app, self.project, stage="full_text").pack(fill="both", expand=True)
         elif self.phase == "extraction":
             ExtractionPanel(self.content, self.app, self.project, self.config).pack(fill="both", expand=True)
         elif self.phase == "rob":

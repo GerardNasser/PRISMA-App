@@ -146,3 +146,49 @@ async def decisions_list(
             for d in rows.scalars().all()
         ]
     }
+
+
+class QueueIn(BaseModel):
+    project_id: str
+    stage: str = Field(default="title_abstract", pattern=r"^(title_abstract|full_text)$")
+    limit: int = 1000
+    offset: int = 0
+
+
+@rpc("screening.queue")
+async def queue(
+    params: QueueIn, session: AsyncSession, identity_id: uuid.UUID
+) -> dict:
+    """Clusters eligible for screening at a stage.
+
+    Title/abstract screens every cluster; full text screens only clusters
+    whose final title/abstract decision was include or maybe.
+    """
+    from prismapi.db.models import Record, RecordCluster
+    from prismapi.rpc.handlers.dedup import _canonical_out, _cluster_out
+    from prismapi.services.phase_completion import full_text_pool_ids
+
+    project = await _assert_member(session, uuid.UUID(params.project_id), identity_id)
+    q = select(RecordCluster).where(RecordCluster.project_id == project.id)
+    if params.stage == "full_text":
+        pool = await full_text_pool_ids(session, project.id)
+        if not pool:
+            return {"clusters": []}
+        q = q.where(RecordCluster.id.in_(pool))
+    rows = await session.execute(
+        q.order_by(RecordCluster.size.desc(), RecordCluster.created_at.asc())
+        .offset(params.offset)
+        .limit(params.limit)
+    )
+    clusters = list(rows.scalars().all())
+    canonical_ids = [c.canonical_record_id for c in clusters]
+    canonical_map = {}
+    if canonical_ids:
+        rec_rows = await session.execute(select(Record).where(Record.id.in_(canonical_ids)))
+        canonical_map = {r.id: r for r in rec_rows.scalars().all()}
+    out = []
+    for c in clusters:
+        d = _cluster_out(c)
+        d["canonical"] = _canonical_out(canonical_map.get(c.canonical_record_id))
+        out.append(d)
+    return {"clusters": out}

@@ -125,6 +125,23 @@ def _full_text_pool(
     return pool
 
 
+async def full_text_pool_ids(
+    session: AsyncSession, project_id: uuid.UUID
+) -> set[uuid.UUID]:
+    """Ids of clusters whose final title/abstract decision advances them."""
+    raters = await _rater_identity_ids(session, project_id)
+    clusters = await _live_cluster_ids(session, project_id)
+    ta_decisions = await _stage_decisions(session, project_id, "title_abstract")
+    resolution_rows = await session.execute(
+        select(ConflictResolution.cluster_id, ConflictResolution.final_decision).where(
+            ConflictResolution.project_id == project_id,
+            ConflictResolution.stage == "title_abstract",
+        )
+    )
+    resolutions = {row[0]: row[1] for row in resolution_rows}
+    return _full_text_pool(ta_decisions, resolutions, raters, clusters)
+
+
 async def gate_state(session: AsyncSession, project_id: uuid.UUID) -> GateState:
     """Assemble the `GateState` snapshot for a project from the database."""
     project_exists = bool(

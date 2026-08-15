@@ -1,9 +1,10 @@
-"""Title / abstract screening, codebook-driven.
+"""Screening panel, codebook-driven. Serves both stages.
 
 Each cluster (one logical study after de-duplication) is presented with
 title + abstract + journal / authors / year. Decisions are tagged with
 codebook rules so exclusions carry a structured reason — exactly the
-shape PRISMA flow diagrams need.
+shape PRISMA flow diagrams need. At the full-text stage an exclusion
+must carry a reason (PRISMA 2020 item 16b); at title/abstract it may.
 
 Keyboard
 --------
@@ -31,11 +32,18 @@ def _normalize_rules(codebook: dict | None) -> list[dict]:
     return list(rules)
 
 
+STAGE_LABELS = {
+    "title_abstract": "Title / abstract screening",
+    "full_text": "Full-text screening",
+}
+
+
 class ScreeningPanel(ctk.CTkFrame):
-    def __init__(self, master, app, project):
+    def __init__(self, master, app, project, stage: str = "title_abstract"):
         super().__init__(master, fg_color=T.PAPER)
         self.app = app
         self.project = project
+        self.stage = stage
         self.clusters: list[dict] = []
         self.decisions_by_cluster: dict[str, dict] = {}
         self.idx = 0
@@ -85,7 +93,7 @@ class ScreeningPanel(ctk.CTkFrame):
         head.pack(fill="x", pady=(0, 6))
         ctk.CTkLabel(
             head,
-            text="Title / abstract screening",
+            text=STAGE_LABELS.get(self.stage, self.stage),
             font=("SF Pro Display", 16, "bold"),
             text_color=T.INK,
         ).pack(side="left")
@@ -182,7 +190,8 @@ class ScreeningPanel(ctk.CTkFrame):
         self.load_error = None
         try:
             self.clusters = self.app.rpc.call(
-                "dedup.clusters.list", {"project_id": self.project["id"], "limit": 1000}
+                "screening.queue",
+                {"project_id": self.project["id"], "stage": self.stage, "limit": 1000},
             )["clusters"]
         except Exception as e:  # noqa: BLE001
             self.clusters = []
@@ -203,7 +212,7 @@ class ScreeningPanel(ctk.CTkFrame):
         try:
             ds = self.app.rpc.call(
                 "screening.decisions.list",
-                {"project_id": self.project["id"], "stage": "title_abstract"},
+                {"project_id": self.project["id"], "stage": self.stage},
             )["decisions"]
             self.decisions_by_cluster = {d["cluster_id"]: d for d in ds}
         except Exception:
@@ -240,7 +249,14 @@ class ScreeningPanel(ctk.CTkFrame):
                 Helper(self.card_inner, f"Load error: {self.load_error}").pack(pady=(0, 4))
             Helper(
                 self.card_inner,
-                "Run a search, then de-duplicate. Each cluster shows up here for title / abstract screening.",
+                (
+                    "No studies have advanced to full text yet. A study advances once "
+                    "its title/abstract decision is include or maybe (unanimously, or "
+                    "by conflict resolution)."
+                    if self.stage == "full_text"
+                    else "Run a search, then de-duplicate. Each cluster shows up here "
+                    "for title / abstract screening."
+                ),
             ).pack(pady=(0, 20))
             for b in (self.inc_btn, self.exc_btn, self.maybe_btn, self.prev_btn, self.next_btn):
                 b.configure(state="disabled")
@@ -466,7 +482,7 @@ class ScreeningPanel(ctk.CTkFrame):
         try:
             self.irr_data = self.app.rpc.call(
                 "screening.irr",
-                {"project_id": self.project["id"], "stage": "title_abstract"},
+                {"project_id": self.project["id"], "stage": self.stage},
             )
         except Exception:
             self.irr_data = None
@@ -571,13 +587,21 @@ class ScreeningPanel(ctk.CTkFrame):
                 exclusion_code = self.active_exclude_rule["code"]
             elif code is not None:
                 exclusion_code = code
+            if exclusion_code is None and self.stage == "full_text":
+                self.app.toast(
+                    "Reason required",
+                    "Full-text exclusions need a codebook reason (PRISMA item 16b). "
+                    "Arm an exclude rule on the right first.",
+                    variant="warn",
+                )
+                return
         try:
             self.app.rpc.call(
                 "screening.decision",
                 {
                     "project_id": self.project["id"],
                     "cluster_id": cluster["id"],
-                    "stage": "title_abstract",
+                    "stage": self.stage,
                     "decision": decision,
                     "exclusion_code": exclusion_code,
                 },
@@ -595,7 +619,13 @@ class ScreeningPanel(ctk.CTkFrame):
             self.active_exclude_rule = None
             self._render_rule_strip()
         self._refresh_irr()
-        self._advance(1)
+        if self.idx >= len(self.clusters) - 1:
+            # Last study: nothing to advance to, so re-render in place and
+            # let the sidebar re-check whether the next phase just opened.
+            self._render()
+            self.app.refresh_project_phases()
+        else:
+            self._advance(1)
 
     def _advance(self, delta: int) -> None:
         if not self.clusters:

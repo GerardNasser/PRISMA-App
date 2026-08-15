@@ -80,5 +80,7 @@ class ProtocolPanel(ctk.CTkFrame):
                 },
             )
             self.app.toast(f"Protocol saved (v{res['version']})", variant="ok")
+            # A first protocol unlocks Search and Codebook; re-check the locks.
+            self.app.refresh_project_phases()
         except Exception as e:  # noqa: BLE001
             self.app.toast("Couldn't save protocol", str(e), variant="danger")

@@ -34,13 +34,34 @@ class DedupPanel(ctk.CTkFrame):
         self.list_wrap = ctk.CTkScrollableFrame(self, fg_color=T.PAPER, height=400)
         self.list_wrap.pack(fill="both", expand=True)
 
-    def _run(self) -> None:
+    def _run(self, force: bool = False) -> None:
+        from tkinter import messagebox
+
         try:
-            self.app.rpc.call("dedup.run", {"project_id": self.project["id"]})
+            self.app.rpc.call(
+                "dedup.run", {"project_id": self.project["id"], "force": force}
+            )
             self.app.toast("Dedup complete", variant="ok")
             self.refresh()
+            # New clusters unlock title/abstract screening.
+            self.app.refresh_project_phases()
         except Exception as e:  # noqa: BLE001
+            counts = getattr(e, "data", None) or {}
+            would_delete = counts.get("would_delete") if isinstance(counts, dict) else None
+            if would_delete and not force:
+                total = sum(would_delete.values())
+                if messagebox.askyesno(
+                    "Re-run dedup?",
+                    f"Re-running dedup deletes {total} existing screening / "
+                    "extraction / risk-of-bias entries.\n\n"
+                    "A snapshot is taken first, so you can restore. Continue?",
+                    parent=self,
+                ):
+                    self._run(force=True)
+                return
             self.app.toast("Dedup failed", str(e), variant="danger")
+
+    _LIMIT = 1000
 
     def refresh(self) -> None:
         for c in self.summary_inner.winfo_children():
@@ -48,13 +69,19 @@ class DedupPanel(ctk.CTkFrame):
         for c in self.list_wrap.winfo_children():
             c.destroy()
         try:
-            clusters = self.app.rpc.call("dedup.clusters.list", {"project_id": self.project["id"]})["clusters"]
+            clusters = self.app.rpc.call(
+                "dedup.clusters.list",
+                {"project_id": self.project["id"], "limit": self._LIMIT},
+            )["clusters"]
         except Exception as e:  # noqa: BLE001
             Helper(self.summary_inner, f"Couldn't load clusters: {e}").pack(anchor="w")
             return
+        count_text = f"{len(clusters)} cluster{'s' if len(clusters) != 1 else ''}"
+        if len(clusters) == self._LIMIT:
+            count_text = f"first {self._LIMIT} clusters shown"
         ctk.CTkLabel(
             self.summary_inner,
-            text=f"{len(clusters)} cluster{'s' if len(clusters) != 1 else ''}",
+            text=count_text,
             font=("SF Pro Display", 14, "bold"),
             text_color=T.INK,
         ).pack(anchor="w")

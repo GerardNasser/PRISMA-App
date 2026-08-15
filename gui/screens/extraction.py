@@ -18,6 +18,9 @@ class ExtractionPanel(ctk.CTkFrame):
         self.active_cluster = None
         self.template = self.config["extraction_template"]
         self._fields: dict[str, Field] = {}
+        # My existing extraction per cluster id, so revisiting a study shows
+        # what was saved instead of a blank form that would overwrite it.
+        self.mine_by_cluster: dict[str, dict] = {}
         self._build()
         self._load_clusters()
 
@@ -62,6 +65,17 @@ class ExtractionPanel(ctk.CTkFrame):
         except Exception as e:  # noqa: BLE001
             self.app.toast("Couldn't load clusters", str(e), variant="danger")
             self.clusters = []
+        try:
+            rows = self.app.rpc.call(
+                "extraction.list", {"project_id": self.project["id"]}
+            )["extractions"]
+            me = self.app.identity["id"]
+            self.mine_by_cluster = {
+                r["cluster_id"]: r for r in rows if r["reviewer_identity_id"] == me
+            }
+        except Exception as e:  # noqa: BLE001
+            self.app.toast("Couldn't load saved extractions", str(e), variant="danger")
+            self.mine_by_cluster = {}
         for c in self.cluster_list.winfo_children():
             c.destroy()
         for cl in self.clusters:
@@ -95,6 +109,27 @@ class ExtractionPanel(ctk.CTkFrame):
         if self.active_cluster is None:
             Helper(self.form_wrap, "No cluster selected.").pack(pady=20)
             return
+
+        existing = self.mine_by_cluster.get(self.active_cluster["id"])
+        saved = (existing or {}).get("payload") or {}
+        if existing:
+            status_row = ctk.CTkFrame(self.form_wrap, fg_color="transparent")
+            status_row.pack(fill="x", pady=(0, 4))
+            Badge(
+                status_row,
+                f"saved: {existing['status']}",
+                variant="ok" if existing["status"] == "submitted" else "warn",
+            ).pack(side="left")
+
+        def _initial(f: dict):
+            v = saved.get(f["key"])
+            if v is None:
+                return ""
+            if f["type"] == "boolean":
+                return "yes" if v else "no"
+            if f["type"] == "select_many" and isinstance(v, list):
+                return ", ".join(str(x) for x in v)
+            return str(v)
 
         # Group fields by `group`
         groups: dict[str, list[dict]] = {}
@@ -133,6 +168,7 @@ class ExtractionPanel(ctk.CTkFrame):
                     helper=f.get("help"),
                     kind=kind,
                     options=options,
+                    initial=_initial(f),
                 )
                 span = 2 if kind == "textbox" else 1
                 fld.grid(row=row, column=col, columnspan=span, sticky="ew", padx=(0, 12) if col == 0 else (0, 0), pady=(0, 8))
@@ -174,7 +210,7 @@ class ExtractionPanel(ctk.CTkFrame):
             else:
                 payload[k] = v
         try:
-            self.app.rpc.call(
+            saved = self.app.rpc.call(
                 "extraction.save",
                 {
                     "project_id": self.project["id"],
@@ -183,6 +219,10 @@ class ExtractionPanel(ctk.CTkFrame):
                     "payload": payload,
                 },
             )
+            self.mine_by_cluster[self.active_cluster["id"]] = saved
             self.app.toast("Submitted" if submit else "Draft saved", variant="ok")
+            if submit:
+                # A submitted extraction can open the risk-of-bias gate.
+                self.app.refresh_project_phases()
         except Exception as e:  # noqa: BLE001
             self.app.toast("Save failed", str(e), variant="danger")

@@ -380,11 +380,21 @@ class NewProjectFrame(ctk.CTkFrame):
 
         def commit_and_continue():
             try:
-                self.reviewer_cfg["alpha_threshold"] = float(a_var.get())
-                self.reviewer_cfg["kappa_threshold"] = float(k_var.get())
+                alpha = float(a_var.get())
+                kappa = float(k_var.get())
             except Exception:
                 self.app.toast("α and κ targets must be numbers 0.0–1.0", variant="warn")
                 return
+            # The server rejects out-of-range thresholds later, at protocol
+            # save — catching it here keeps the reviewer config from being
+            # silently dropped after project creation.
+            if not (0.0 < alpha <= 1.0) or not (0.0 < kappa <= 1.0):
+                self.app.toast(
+                    "α and κ targets must be between 0 and 1", variant="warn"
+                )
+                return
+            self.reviewer_cfg["alpha_threshold"] = alpha
+            self.reviewer_cfg["kappa_threshold"] = kappa
             self._set_step("enroll")
 
         back_to = "branch" if self.config.get("branch_choices") else (
@@ -701,18 +711,36 @@ class NewProjectFrame(ctk.CTkFrame):
                         "reviewer_config": self.reviewer_cfg,
                     },
                 )
-            except Exception:
-                pass  # The Protocol screen lets them save later if this fails.
+            except Exception as e:  # noqa: BLE001
+                # The project exists but the reviewer config didn't stick —
+                # say so loudly, or Search/Codebook stay locked with no clue.
+                self.app.toast(
+                    "Project created, but the protocol didn't save",
+                    f"{e} — open the Protocol phase and save it to unlock the rest.",
+                    variant="danger",
+                )
+            me = self.app.identity or {}
+            my_ids = {
+                str(me.get("email") or "").lower(),
+                str(me.get("orcid") or "").lower(),
+            } - {""}
             for rater in self.raters:
+                rater_ids = {
+                    str(rater.get("email") or "").lower(),
+                    str(rater.get("orcid") or "").lower(),
+                } - {""}
+                if rater_ids & my_ids:
+                    # That's you — projects.create already enrolled you as owner.
+                    continue
                 try:
                     self.app.rpc.call(
                         "members.enroll",
                         {"project_id": proj["id"], **rater},
                     )
-                except Exception:
-                    # Surface a single warning but do not block project creation:
+                except Exception as e:  # noqa: BLE001
                     self.app.toast(
-                        f"Could not enroll {rater['last_name']} — add them later in Settings.",
+                        f"Could not enroll {rater['last_name']}",
+                        f"{e} — they can also be merged in later via Share / import.",
                         variant="warn",
                     )
             self.app.toast("Project created", variant="ok")

@@ -184,6 +184,21 @@ class PrismAPIApp(ctk.CTk):
     def set_identity(self, identity: dict) -> None:
         self.identity = identity
 
+    def refresh_project_phases(self) -> None:
+        """Re-evaluate sidebar phase locks after a mutation, if a project is open.
+
+        Deferred with after_idle so a panel can call this from inside its own
+        event handler without being destroyed mid-callback.
+        """
+        frame = getattr(self, "active_project_frame", None)
+        if frame is None:
+            return
+        try:
+            if frame.winfo_exists():
+                frame.after_idle(frame.refresh)
+        except Exception:  # noqa: BLE001 - stale frame reference after nav
+            self.active_project_frame = None
+
     # ---- toasts ----
     def toast(self, title: str, description: str = "", variant: str = "info") -> None:
         try:

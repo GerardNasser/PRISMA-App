@@ -18,6 +18,9 @@ class RoBPanel(ctk.CTkFrame):
         self.active_cluster = None
         self.spec = None
         self._fields: dict[str, dict] = {}
+        # My existing assessment per cluster id, so revisiting a study shows
+        # what was saved instead of a blank form that would overwrite it.
+        self.mine_by_cluster: dict[str, dict] = {}
         self._build()
         self._load()
 
@@ -63,8 +66,18 @@ class RoBPanel(ctk.CTkFrame):
             self.clusters = self.app.rpc.call(
                 "dedup.clusters.list", {"project_id": self.project["id"], "limit": 1000}
             )["clusters"]
-        except Exception:
+        except Exception as e:  # noqa: BLE001
+            self.app.toast("Couldn't load clusters", str(e), variant="danger")
             self.clusters = []
+        try:
+            rows = self.app.rpc.call("rob.list", {"project_id": self.project["id"]})["rob"]
+            me = self.app.identity["id"]
+            self.mine_by_cluster = {
+                r["cluster_id"]: r for r in rows if r["reviewer_identity_id"] == me
+            }
+        except Exception as e:  # noqa: BLE001
+            self.app.toast("Couldn't load saved assessments", str(e), variant="danger")
+            self.mine_by_cluster = {}
         for c in self.cluster_list.winfo_children():
             c.destroy()
         for cl in self.clusters:
@@ -99,6 +112,12 @@ class RoBPanel(ctk.CTkFrame):
             Helper(self.form_wrap, "This tool has no inline domains.").pack(pady=20)
             return
         scale = self.spec.get("scale") or ["low", "some_concerns", "high", "no_information"]
+        existing = self.mine_by_cluster.get(self.active_cluster["id"])
+        saved = (existing or {}).get("judgements") or {}
+        if existing:
+            status_row = ctk.CTkFrame(self.form_wrap, fg_color="transparent")
+            status_row.pack(fill="x", pady=(0, 4))
+            Badge(status_row, "previously saved", variant="ok").pack(side="left")
         for d in self.spec["domains"]:
             card = Card(self.form_wrap)
             card.pack(fill="x", pady=4)
@@ -107,9 +126,21 @@ class RoBPanel(ctk.CTkFrame):
             ctk.CTkLabel(inner, text=d["label"], font=("SF Pro Display", 13, "bold"), text_color=T.INK).pack(anchor="w")
             if d.get("help"):
                 Helper(inner, d["help"]).pack(anchor="w", pady=(2, 8))
-            judgement = Field(inner, "Judgement", kind="select", options=[""] + list(scale))
+            prior = saved.get(d["key"]) or {}
+            judgement = Field(
+                inner,
+                "Judgement",
+                kind="select",
+                options=[""] + list(scale),
+                initial=prior.get("judgement") or "",
+            )
             judgement.pack(fill="x", pady=(2, 6))
-            justification = Field(inner, "Justification", kind="textbox")
+            justification = Field(
+                inner,
+                "Justification",
+                kind="textbox",
+                initial=prior.get("justification") or "",
+            )
             justification.pack(fill="x")
             self._fields[d["key"]] = {"judgement": judgement, "justification": justification}
 
@@ -126,7 +157,7 @@ class RoBPanel(ctk.CTkFrame):
             self.app.toast("Pick at least one judgement", variant="warn")
             return
         try:
-            self.app.rpc.call(
+            saved = self.app.rpc.call(
                 "rob.save",
                 {
                     "project_id": self.project["id"],
@@ -134,6 +165,7 @@ class RoBPanel(ctk.CTkFrame):
                     "judgements": judgements,
                 },
             )
+            self.mine_by_cluster[self.active_cluster["id"]] = saved
             self.app.toast("RoB saved", variant="ok")
         except Exception as e:  # noqa: BLE001
             self.app.toast("Save failed", str(e), variant="danger")

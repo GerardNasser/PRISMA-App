@@ -55,6 +55,7 @@ class CodebookPanel(ctk.CTkFrame):
         self._refresh()
 
     def _refresh(self) -> None:
+        self._rationale_fields: dict[int, Field] = {}
         for c in self.list_wrap.winfo_children():
             c.destroy()
         if not self.rules:
@@ -94,8 +95,11 @@ class CodebookPanel(ctk.CTkFrame):
 
         rat_field = Field(inner, "Rationale", kind="textbox", initial=r["rationale"])
         rat_field.pack(fill="x", pady=4)
-        # textbox doesn't have a StringVar; bind on focusout
+        # Textboxes have no StringVar. FocusOut keeps self.rules roughly in
+        # sync, but _save reads the widgets directly — FocusOut does not fire
+        # when a button is clicked on macOS.
         rat_field.widget.bind("<FocusOut>", lambda _e, i=idx, w=rat_field: self._update(i, "rationale", w.get()))
+        self._rationale_fields[idx] = rat_field
 
     def _update(self, idx: int, key: str, value) -> None:
         if idx < len(self.rules):
@@ -111,11 +115,13 @@ class CodebookPanel(ctk.CTkFrame):
         self._refresh()
 
     def _save(self) -> None:
-        # Flush focus from any open textbox first
-        try:
-            self.focus_set()
-        except Exception:
-            pass
+        # Read rationale straight from the live widgets: relying on FocusOut
+        # loses freshly typed text when Save is clicked directly.
+        for idx, fld in getattr(self, "_rationale_fields", {}).items():
+            try:
+                self._update(idx, "rationale", fld.get())
+            except Exception:  # noqa: BLE001 - widget already destroyed
+                continue
         valid = [r for r in self.rules if r["code"].strip() and r["rationale"].strip()]
         if not valid:
             self.app.toast("Need at least one rule with code + rationale", variant="warn")
