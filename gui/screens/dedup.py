@@ -24,7 +24,7 @@ class DedupPanel(ctk.CTkFrame):
         self.run_btn.pack(side="right")
         Helper(
             self,
-            "DOI → PMID → normalised title+year → fuzzy title (rapidfuzz token-set + author Jaccard + year tolerance).",
+            "DOI → PMID → normalised title+year → fuzzy title (rapidfuzz token-sort + author Jaccard + year tolerance).",
         ).pack(anchor="w", pady=(0, 12))
 
         self.summary = Card(self)

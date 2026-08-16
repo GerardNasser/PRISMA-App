@@ -124,7 +124,12 @@ def main() -> int:
         b = DATE_TO or datetime.utcnow().strftime("%Y/%m/%d")
         term = f"({{term}}) AND ({{a}}:{{b}}[dp])"
     for f in APPLIED_FILTERS:
-        term = f"({{term}}) AND ({{f}})"
+        # PubMed's NOT is binary — "NOT ..." fragments must not be wrapped
+        # in an AND clause.
+        if f.upper().startswith("NOT "):
+            term = f"({{term}}) NOT ({{f[4:]}})"
+        else:
+            term = f"({{term}}) AND ({{f}})"
 
     print(f"esearch: {{term[:120]}}...")
     es_url = f"{{EUTILS}}/esearch.fcgi?{{_params({{'db':'pubmed','term':term,'retmax':min(MAX_RESULTS,10000),'usehistory':'y','retmode':'json'}})}}"
@@ -171,7 +176,9 @@ def main() -> int:
                 "url": f"https://pubmed.ncbi.nlm.nih.gov/{{uid}}/",
                 "raw": item,
             }})
-        fetched += len(uids) or batch
+        # Advance by the request window, not the reply size: an empty or
+        # short reply must never re-fetch (infinite loop) or skip a window.
+        fetched += batch
         time.sleep(0.34)  # NCBI rate limit (3/sec without key)
 
     out = {{
@@ -262,8 +269,10 @@ def main() -> int:
     params = {{"per-page": 200, "search": QUERY}}
     if os.environ.get("OPENALEX_EMAIL"):
         params["mailto"] = os.environ["OPENALEX_EMAIL"]
-    for f in APPLIED_FILTERS:
-        params["search"] = f"({{params['search']}}) AND ({{f}})"
+    if APPLIED_FILTERS:
+        # OpenAlex filter expressions (language:en, type:!review) go in the
+        # `filter` parameter; inside `search` they match as literal text.
+        params["filter"] = ",".join(APPLIED_FILTERS)
 
     cursor = "*"
     records: list[dict] = []

@@ -5,12 +5,22 @@ Strategy (in order; later only catches what earlier missed):
 2. PMID exact.
 3. Normalized (title + year): lowercased, ASCII-folded, punctuation stripped,
    collapsed whitespace; title must be >= 10 chars; year must match exactly.
-4. Fuzzy: rapidfuzz token-set ratio on titles >= threshold AND
-   author surname Jaccard >= threshold AND |year diff| <= 1.
+4. Fuzzy: rapidfuzz token-SORT ratio on titles >= threshold AND
+   author surname Jaccard >= threshold AND |year diff| <= 1. Sort ratio, not
+   set ratio: set ratio scores 100 whenever one title's tokens are a subset
+   of the other's ("Effects of X" vs "Effects of X: a randomized trial"),
+   which merges a paper with its own follow-up.
+
+Fuzzy comparison is blocked by publication year (a record is only compared
+against records within `year_tolerance`, plus year-less records), so the
+pass stays near-linear on real corpora instead of O(n²).
+
+Every clustered record seeds the identifier indexes, so a later record can
+match any member of a cluster, not only its founder.
 
 Each match emits `(record_id, cluster_id, match_reason, match_score)`. The
-canonical record per cluster is the first one assigned (often the most
-metadata-rich, which we can rank by completeness).
+canonical record per cluster is the first one assigned (the most
+metadata-rich, since input is ordered by completeness).
 """
 
 from __future__ import annotations
@@ -106,22 +116,21 @@ def cluster_records(
 ) -> list[MatchDecision]:
     """Cluster records by exact then fuzzy keys. Deterministic order matters
     only for which record becomes canonical (first in input wins ties)."""
-    # cluster_key -> canonical record_id
-    canon: dict[str, uuid.UUID] = {}
-    # record_id -> (cluster_key, method, score)
     decisions: list[MatchDecision] = []
 
-    # Pass 1: DOI exact
     doi_index: dict[str, str] = {}
     pmid_index: dict[str, str] = {}
     norm_title_year_index: dict[tuple[str, int], str] = {}
-    fuzzy_pool: list[RecordSnapshot] = []
-    fuzzy_ids: set[uuid.UUID] = set()
+    # Year-blocked fuzzy pool. None holds year-less records, which are
+    # candidates for every comparison.
+    fuzzy_buckets: dict[int | None, list[tuple[RecordSnapshot, str]]] = {}
+    cluster_key_of: dict[uuid.UUID, str] = {}
 
     # Sort: more complete first, so canonical = richest record.
     ordered = sorted(snapshots, key=lambda s: (-s.completeness, str(s.id)))
 
     def _seed_indexes(snap: RecordSnapshot, key: str) -> None:
+        """Make every clustered record matchable, not only cluster founders."""
         ndoi = normalize_doi(snap.doi)
         npmid = normalize_pmid(snap.pmid)
         ntitle = normalize_title(snap.title) if snap.title else ""
@@ -131,20 +140,29 @@ def cluster_records(
             pmid_index.setdefault(npmid, key)
         if ntitle and snap.year and len(ntitle) >= 10:
             norm_title_year_index.setdefault((ntitle, snap.year), key)
-        fuzzy_pool.append(snap)
-        fuzzy_ids.add(snap.id)
+        fuzzy_buckets.setdefault(snap.year, []).append((snap, key))
+        cluster_key_of[snap.id] = key
 
-    def _fuzzy_match(snap: RecordSnapshot, ntitle: str) -> tuple[RecordSnapshot, float] | None:
+    def _fuzzy_candidates(year: int | None) -> list[tuple[RecordSnapshot, str]]:
+        if year is None:
+            out: list[tuple[RecordSnapshot, str]] = []
+            for bucket in fuzzy_buckets.values():
+                out.extend(bucket)
+            return out
+        out = list(fuzzy_buckets.get(None, []))
+        for y in range(year - year_tolerance, year + year_tolerance + 1):
+            out.extend(fuzzy_buckets.get(y, []))
+        return out
+
+    def _fuzzy_match(snap: RecordSnapshot, ntitle: str) -> tuple[str, float] | None:
         if not ntitle:
             return None
         authors_a = _author_surnames(snap.authors)
-        best: tuple[RecordSnapshot, float] | None = None
-        for other in fuzzy_pool:
+        best: tuple[str, float] | None = None
+        for other, other_key in _fuzzy_candidates(snap.year):
             if other.id == snap.id or not other.title:
                 continue
-            if snap.year and other.year and abs(snap.year - other.year) > year_tolerance:
-                continue
-            ratio = fuzz.token_set_ratio(ntitle, normalize_title(other.title))
+            ratio = fuzz.token_sort_ratio(ntitle, normalize_title(other.title))
             if ratio < fuzzy_title_threshold:
                 continue
             authors_b = _author_surnames(other.authors)
@@ -152,7 +170,7 @@ def cluster_records(
                 continue
             score = ratio / 100.0
             if best is None or score > best[1]:
-                best = (other, score)
+                best = (other_key, score)
         return best
 
     for snap in ordered:
@@ -164,11 +182,13 @@ def cluster_records(
         if ndoi and ndoi in doi_index:
             key = doi_index[ndoi]
             decisions.append(MatchDecision(snap.id, key, "doi", 1.0))
+            _seed_indexes(snap, key)
             continue
         # Step 2: PMID exact
         if npmid and npmid in pmid_index:
             key = pmid_index[npmid]
             decisions.append(MatchDecision(snap.id, key, "pmid", 1.0))
+            _seed_indexes(snap, key)
             continue
         # Step 3: normalized title + year exact
         if (
@@ -179,29 +199,27 @@ def cluster_records(
         ):
             key = norm_title_year_index[(ntitle, snap.year)]
             decisions.append(MatchDecision(snap.id, key, "title_year_norm", 0.98))
+            _seed_indexes(snap, key)
             continue
         # Step 4: fuzzy title + author + year-tolerant
         match = _fuzzy_match(snap, ntitle)
         if match is not None:
-            other, score = match
-            other_decision = next(d for d in decisions if d.record_id == other.id)
-            decisions.append(MatchDecision(snap.id, other_decision.cluster_key, "fuzzy_title", score))
+            match_key, score = match
+            decisions.append(MatchDecision(snap.id, match_key, "fuzzy_title", score))
+            _seed_indexes(snap, match_key)
             continue
 
-        # No match — new cluster. Seed all indexes for future records.
+        # No match — new cluster. The method label mirrors the key actually
+        # used, including the >= 10-char title guard.
         if ndoi:
-            key = f"doi:{ndoi}"
+            key, method, score = f"doi:{ndoi}", "doi", 1.0
         elif npmid:
-            key = f"pmid:{npmid}"
+            key, method, score = f"pmid:{npmid}", "pmid", 1.0
         elif ntitle and snap.year and len(ntitle) >= 10:
-            key = f"ty:{ntitle}:{snap.year}"
+            key, method, score = f"ty:{ntitle}:{snap.year}", "title_year_norm", 0.98
         else:
-            key = f"solo:{snap.id}"
-        canon[key] = snap.id
-        method = (
-            "doi" if ndoi else "pmid" if npmid else "title_year_norm" if ntitle and snap.year else "solo"
-        )
-        decisions.append(MatchDecision(snap.id, key, method, 1.0 if method != "title_year_norm" else 0.98))
+            key, method, score = f"solo:{snap.id}", "solo", 1.0
+        decisions.append(MatchDecision(snap.id, key, method, score))
         _seed_indexes(snap, key)
 
     return decisions

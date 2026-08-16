@@ -66,12 +66,21 @@ async def execute_search(
     await session.flush()
 
     hit_count = 0
+    skipped_duplicate_ids = 0
+    seen_external_ids: set[str] = set()
     try:
         # `ris_import` adapter encodes its payload via the query arg.
         effective_query = payload if database == "ris_import" and payload else query
         async for hit in adapter.search(
             effective_query, max_results=max_results, filters=all_filter_fragments
         ):
+            # Two hits with one external id (e.g. RIS rows whose fallback id
+            # is the same truncated title) would violate the unique
+            # constraint and kill the whole run. First one wins.
+            if hit.external_id in seen_external_ids:
+                skipped_duplicate_ids += 1
+                continue
+            seen_external_ids.add(hit.external_id)
             session.add(
                 Record(
                     project_id=project.id,
@@ -138,7 +147,11 @@ async def execute_search(
         action="search.complete",
         entity_type="search",
         entity_id=str(search.id),
-        payload={"database": database, "hits": hit_count},
+        payload={
+            "database": database,
+            "hits": hit_count,
+            "skipped_duplicate_external_ids": skipped_duplicate_ids,
+        },
     )
     await session.commit()
     await session.refresh(search)

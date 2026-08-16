@@ -33,6 +33,24 @@ class SearchFilter:
         return self.fragments.get(adapter_id)
 
 
+def combine_query(query: str, fragments: list[str]) -> str:
+    """AND filter fragments into a boolean query string.
+
+    Fragments beginning with "NOT " become `(query) NOT (term)` — PubMed's
+    NOT is a binary operator, so `AND (NOT term)` is not a safe encoding.
+
+    OpenAlex fragments never come through here: they are filter-parameter
+    expressions, not query syntax (see the openalex adapter).
+    """
+    out = query
+    for f in fragments:
+        if f.upper().startswith("NOT "):
+            out = f"({out}) NOT ({f[4:]})"
+        else:
+            out = f"({out}) AND ({f})"
+    return out
+
+
 _LIBRARY: dict[str, SearchFilter] = {}
 
 
@@ -92,15 +110,21 @@ _register(
     )
 )
 
+# OpenAlex fragments are *filter parameter* expressions (language:en,
+# type:!review), not query-string syntax — the adapter sends them via
+# `filter=`, never inside `search=`, where they would match as literal text.
 _register(
     SearchFilter(
         id="english_language",
         label="English language only",
-        description="Restrict to English-language records. Use sparingly; many SR guidelines discourage language restrictions unless justified.",
+        description=(
+            "Restrict to English-language records. Use sparingly; many SR "
+            "guidelines discourage language restrictions unless justified. "
+            "CrossRef has no language filter, so this does not apply there."
+        ),
         fragments={
             "pubmed": "english[lang]",
             "openalex": "language:en",
-            "crossref": "type:journal-article",
         },
     )
 )
@@ -112,7 +136,7 @@ _register(
         description="Exclude review article types (use during primary-study identification).",
         fragments={
             "pubmed": "NOT (review[pt] OR systematic review[pt])",
-            "openalex": "NOT type:review",
+            "openalex": "type:!review",
         },
     )
 )

@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 
+from prismapi.adapters.filters.library import combine_query
 from prismapi.adapters.search.base import (
     SearchAdapter,
     SearchAdapterError,
@@ -36,10 +37,9 @@ class PubMedAdapter(SearchAdapter):
         if settings.ncbi_api_key:
             params_base["api_key"] = settings.ncbi_api_key
 
-        # Apply auto-filters as ANDed term groups in the query.
-        full_query = query
-        for f in filters or []:
-            full_query = f"({full_query}) AND ({f})"
+        # Apply auto-filters as ANDed term groups (NOT-fragments become
+        # binary NOT clauses — PubMed has no unary NOT).
+        full_query = combine_query(query, filters or [])
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             esearch_params = {
@@ -60,8 +60,10 @@ class PubMedAdapter(SearchAdapter):
             if not id_list:
                 return
 
-            # Batch summary fetch
+            # Batch summary fetch. `yielded` caps the total — capping only
+            # the batch starts over-delivers up to a whole batch.
             batch_size = 200
+            yielded = 0
             for start in range(0, min(len(id_list), max_results), batch_size):
                 params = {
                     **params_base,
@@ -81,6 +83,9 @@ class PubMedAdapter(SearchAdapter):
                     if not isinstance(item, dict):
                         continue
                     yield _hit_from_esummary(uid, item)
+                    yielded += 1
+                    if yielded >= max_results:
+                        return
 
 
 def _hit_from_esummary(pmid: str, item: dict[str, Any]) -> SearchHit:

@@ -30,9 +30,11 @@ class OpenAlexAdapter(SearchAdapter):
         params_base: dict[str, Any] = {"per-page": 200, "search": query}
         if settings.openalex_email:
             params_base["mailto"] = settings.openalex_email
-        # OpenAlex filters layer differently from PubMed; we tack them onto the search string.
-        for f in filters or []:
-            params_base["search"] = f"({params_base['search']}) AND ({f})"
+        # Fragments like "language:en" are OpenAlex filter expressions. They
+        # belong in the `filter` parameter (comma = AND) — inside `search`
+        # they are matched as literal text and restrict nothing.
+        if filters:
+            params_base["filter"] = ",".join(filters)
 
         cursor = "*"
         fetched = 0

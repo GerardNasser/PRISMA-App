@@ -87,6 +87,7 @@ def parse_ris(lines: Iterable[str]) -> list[SearchHit]:
         )
         current.clear()
 
+    last_tag: str | None = None
     for raw_line in lines:
         line = raw_line.rstrip("\r\n")
         if not line.strip():
@@ -97,12 +98,15 @@ def parse_ris(lines: Iterable[str]) -> list[SearchHit]:
             value = m.group(2).strip()
             if tag == "ER":
                 flush()
+                last_tag = None
             elif value:
                 current.setdefault(tag, []).append(value)
+                last_tag = tag
         else:
-            # Continuation of last value, append.
-            if current:
-                last_tag = next(reversed(current))
+            # Continuation line: belongs to the tag last SEEN, which is not
+            # the same as the dict's last-inserted key (AU, TI, AU would
+            # append the second author to the title).
+            if current and last_tag and current.get(last_tag):
                 current[last_tag][-1] += " " + line.strip()
     flush()
     return hits
