@@ -15,26 +15,18 @@ Platform: macOS. Windows and Linux builds are planned; `build.py` has a Windows 
 | `gui/` | The desktop UI (CustomTkinter). Screens for onboarding, projects, the wizard, and the per-phase workspace. |
 | `prismapi/` | The engine: SQLite models, services, RPC handlers, field-config registry. |
 | `prismapi/fields/registry/` | 12 ready-to-use field configs (YAML) plus the JSON Schema that validates them. |
-| `tests/` | 87 tests against the engine. |
+| `tests/` | The pytest suite (runs against the same dispatcher the GUI uses). |
 | `tutorials/` | Jupyter notebooks teaching the PubMed, ScienceDirect, and Web of Science APIs. |
-| `docs/` | Architecture notes and the PRISMA 2020 reference PDFs. |
-| `build.py` | PyInstaller build for `.app` / `.exe` / `.dmg`. |
+| `docs/` | Architecture notes, the field-config spec, and the PRISMA 2020 reference PDFs. |
+| `build.py` | PyInstaller build for `.app` / `.dmg` (and, untested, `.exe`). |
 
-The engine and GUI both live in this one repo and run in the same process — no separate sidecar, no listening sockets, no Docker.
+The engine and GUI live in this one repo and run in the same process — no separate sidecar, no listening sockets, no Docker.
 
 ---
 
 ## Install
 
-### macOS — pre-built bundle
-
-A pre-built bundle is not tracked in this repo (`dist/` is gitignored). Download `PrismAPI-0.1.0-beta.1-macos.zip` from the GitHub Releases page, or build it yourself with `python build.py` (see "Building from source" below). Then:
-
-1. Unzip it.
-2. Drag `PrismAPI.app` into `/Applications` (or run it from wherever you unzipped).
-3. First launch: Gatekeeper will warn — right-click → Open → Open. The app isn't code-signed for v1.
-
-### From source (macOS, Windows, Linux)
+### From source
 
 Requires **Python 3.11+**.
 
@@ -50,6 +42,10 @@ python app.py
 ```
 
 That's it — no database to set up, no migrations to run, no env file required. The app creates its own SQLite database on first launch.
+
+### Pre-built macOS bundle
+
+Pre-built bundles are attached to GitHub Releases (they are build artifacts, not tracked in the repo). Unzip, drag `PrismAPI.app` into `/Applications`, and on first launch right-click → Open to get past Gatekeeper — the app isn't code-signed yet. You can also build your own bundle; see "Building from source" below.
 
 ---
 
@@ -71,9 +67,9 @@ Click **+ New project** on the Projects screen. The wizard has 7 steps:
 
 1. **Field** — Health, Preclinical, Social, Environmental, Engineering, Qualitative, or Custom.
 2. **Review type** — e.g. Intervention RCT, Observational, Diagnostic, Omics. (Skipped if the field has only one option.)
-3. **Choices** — Up-front branching the config asks for (skipped if the config has none).
-4. **Reviewers** — How many reviewers per item, Krippendorff α target, Cohen κ target, conflict resolution strategy.
-5. **Enroll raters** — Name + ORCID/email + role (Lead or Rater) for each reviewer. Exactly one Lead.
+3. **Choices** — Up-front questions the config asks, such as the primary study design. The design choice decides the risk-of-bias instrument (RoB 2 for randomised designs, ROBINS-I for non-randomised interventions, QUIPS for prognostic questions). Skipped if the config asks nothing.
+4. **Reviewers** — How many reviewers per item, Krippendorff α target, Cohen κ target, conflict resolution strategy. Targets must be between 0 and 1.
+5. **Enroll raters** — Name + ORCID/email + role (Lead or Rater) for each reviewer. Exactly one Lead. If you list yourself, the app knows — you're already enrolled as the owner.
 6. **Details** — Project name, slug, description.
 7. **Confirm** — Review and create.
 
@@ -85,39 +81,40 @@ The 12 configs that ship today:
 
 | Field | Configs |
 |---|---|
-| Health | Intervention (RCTs), Observational, Diagnostic, Omics |
+| Health | Intervention (RoB 2 / ROBINS-I by design), Observational, Diagnostic (QUADAS-2, Deeks' test), Omics |
 | Preclinical | Animal (SYRCLE RoB) |
-| Social | Economics, Education, Psychology |
-| Environmental | Ecology |
+| Social | Economics, Education, Psychology (RoB 2 / ROBINS-I / QUIPS by design) |
+| Environmental | Ecology (study-level RoB domains; ROSES reporting) |
 | Engineering | SLR (Kitchenham-style) |
 | Qualitative | Synthesis (meta-ethnography / thematic / framework) |
-| General | Custom (generic PRISMA-2020 defaults) |
+| General | Custom (generic PRISMA-2020 defaults, design-aware RoB) |
 
-Each config drives: reporting checklist, registries, required and recommended databases, extraction-template fields, risk-of-bias tool, effect-size defaults and allowed list, synthesis modules, publication-bias requirements, certainty framework, and field-specific QRP warnings.
+Each config drives: reporting checklist, registries, required and recommended databases, extraction-template fields, risk-of-bias tool, effect-size defaults and allowed list, synthesis modules, publication-bias requirements, certainty framework, and field-specific QRP warnings. See `docs/field-config-spec.md` for how to write one.
 
 ---
 
 ## Working inside a project
 
-Each project opens to a sidebar of phases:
+Each project opens to a sidebar of phases. Locked phases show a lock icon and explain why when you click them; they unlock automatically as you complete the phases before them.
 
 - **Overview** — Pinned config summary: reporting, registry, required databases, RoB tool, effect-size default, certainty framework, branch choices, and any field-specific cautions.
 - **Protocol** — Versioned protocol record (title, reviewer config, etc.). Earlier versions stay accessible.
 - **Codebook** — Versioned extraction codebook.
-- **Search** — Configure searches across the databases your field requires; the app can generate a runnable PubMed / OpenAlex / CrossRef script for the configuration.
-- **De-duplicate** — Auto cluster + manual merge.
-- **Title/abstract** — Screening with IRR (Krippendorff α + Cohen κ) and conflict resolution against the thresholds you set in the wizard.
-- **Extraction** — Per-study extraction against the codebook.
-- **Risk of bias** — The right tool for your config (RoB 2, ROBINS-I, SYRCLE, QUADAS-2, etc.).
+- **Search** — Configure searches across the databases your field requires; the app can generate a runnable PubMed / OpenAlex / CrossRef script for the configuration. Failed search runs are recorded too — PRISMA-S wants the attempt, not just the wins.
+- **De-duplicate** — Auto cluster + manual merge. Re-running dedup after screening has started warns you, takes a snapshot first, and never silently deletes decisions. Manual merges carry existing screening and extraction work over to the surviving cluster.
+- **Title/abstract** — Screening with IRR (Krippendorff α + Cohen κ) against the thresholds you set in the wizard.
+- **Full text** — Second screening pass over the studies that advanced. Full-text exclusions require a codebook reason (PRISMA 2020 item 16b).
+- **Extraction** — Per-study extraction against the codebook. Saved work is shown when you revisit a study.
+- **Risk of bias** — The tool your config (and design choice) selects: RoB 2, ROBINS-I, ROBINS-E, QUADAS-2, QUIPS, SYRCLE, and others. Saved judgements reload.
 - **Share / import** — Export or import `.prismaproj` files (see below).
 
-Locked phases show a lock icon and tell you why they're locked when you click them.
+Projects can be moved to the trash from the Projects screen; they stay restorable for 30 days.
 
 ---
 
 ## Sharing work with collaborators
 
-The exchange format is **`.prismaproj`** — a zip with `manifest.json`, JSONL files per table, and an `assets/` folder. Every file's SHA-256 is recorded in the manifest, so a tampered bundle is rejected on import.
+The exchange format is **`.prismaproj`** — a zip with `manifest.json` and JSONL files per table, including the project's member roster. Every file's SHA-256 is recorded in the manifest; a tampered, truncated, or padded bundle is rejected on import.
 
 **Export.** Project → Share → Export. Pick a path. Hand the file to your collaborator however you like.
 
@@ -148,14 +145,14 @@ Override with the `PRISMAPI_DATA_DIR` environment variable if you want it somewh
 ### Safety
 
 - **Soft delete + Trash** — Deleted projects sit in the trash for 30 days. Emptying requires typing `DELETE`.
-- **Snapshots** — Auto-taken before imports, plus manual any time. 10 auto-snapshots are kept; manual snapshots are unlimited.
+- **Snapshots** — Auto-taken before imports and forced dedup re-runs, plus manual any time. 10 auto-snapshots are kept; manual snapshots are unlimited.
 - **Versioned protocol and codebook** — Every save is a new version, prior versions retained.
 
 ---
 
 ## Optional configuration
 
-Either as environment variables or in a `.env` next to `app.py`:
+Set these as environment variables, or in a `.env` file in the directory you launch from (a `.env` is only read when launching from a terminal — the Finder doesn't give apps your shell's working directory):
 
 | Variable | Purpose |
 |---|---|
@@ -165,12 +162,10 @@ Either as environment variables or in a `.env` next to `app.py`:
 | `OPENALEX_EMAIL` | Joins the OpenAlex "polite pool" (faster, more reliable). |
 | `PRISMAPI_TRASH_RETENTION_DAYS` | Trash retention (default 30). |
 | `PRISMAPI_SNAPSHOT_AUTO_CAP` | Auto-snapshot cap (default 10). |
-| `LLM_ADVISORY_ENABLED` | Turn on advisory LLM hints (off by default). |
-| `GOOGLE_API_KEY` | Needed if `LLM_ADVISORY_ENABLED=true`. |
 
 None of these are required to use the app.
 
-The app only ever makes **outbound** HTTPS calls — to PubMed, OpenAlex, CrossRef, ScienceDirect, Web of Science. Nothing listens on any port.
+The app only ever makes **outbound** HTTPS calls — to PubMed, OpenAlex, and CrossRef when you run searches. Nothing listens on any port. (The ScienceDirect and Web of Science tutorials talk to those APIs from your own notebook session; the app itself doesn't.)
 
 ---
 
@@ -180,16 +175,16 @@ Build a distributable from your local checkout:
 
 ```bash
 pip install -r requirements.txt
-python build.py            # macOS: builds .app + .dmg ; Windows: builds .exe
+python build.py            # macOS: builds .app + .dmg ; Windows: builds .exe (untested)
 python build.py --no-dmg   # macOS only: skip the .dmg step
 ```
 
 Output:
 
 - macOS: `dist/PrismAPI.app` and `dist/PrismAPI.dmg`
-- Windows: `dist/PrismAPI.exe`
+- Windows: `dist/PrismAPI.exe` (build path exists; no Windows build has been verified)
 
-The build uses PyInstaller and bundles the field-config YAMLs, the GUI, and the engine into one app. Bundles are unsigned — both Gatekeeper (macOS) and SmartScreen (Windows) will warn until you add code-signing certificates.
+The build uses PyInstaller and bundles the field-config YAMLs, the GUI, and the engine into one app. The PyInstaller spec file is generated during the build — it is not a checked-in input. Bundles are unsigned, so Gatekeeper (and SmartScreen, once Windows builds exist) will warn until code-signing certificates are added.
 
 ---
 
@@ -200,15 +195,13 @@ pip install pytest pytest-asyncio
 pytest -q
 ```
 
-87 tests cover the engine: identity, projects, members, screening, IRR, dedup, extraction, RoB, audit, snapshots, trash, statefile export/import/merge, fields registry validation, and RIS import. The HTTP search adapters (PubMed, OpenAlex, CrossRef) are not covered beyond catalog registration.
-
-The GUI is mostly untested — 4 tests cover one screening-rules helper. The screens are thin synchronous wrappers around the same RPC dispatcher the engine tests hit directly.
+The suite covers the engine end to end: identity, projects, members, phase gates, screening (both stages), IRR, dedup safety, extraction, RoB tool selection, audit, snapshots, trash, statefile export/import/merge integrity, fields registry validation, and the search adapters. GUI logic is covered only where it's pure (screening-rule normalisation); the screens themselves are thin wrappers around the same RPC dispatcher the tests call directly.
 
 ---
 
 ## Tutorials
 
-`tutorials/` has interactive Jupyter notebooks that walk through the **PubMed**, **ScienceDirect**, and **Web of Science** APIs end-to-end — useful if you want to understand or extend what the app does at runtime.
+`tutorials/` has runnable Jupyter notebooks for the **PubMed**, **ScienceDirect**, and **Web of Science** APIs — useful if you want to understand or extend what the app does at runtime. See `tutorials/README.md` for per-notebook setup (PubMed uses an `.env` file; ScienceDirect needs a `config.json` with your Elsevier key; Web of Science takes its key in the notebook's config cell).
 
 ```bash
 cd tutorials
@@ -225,15 +218,15 @@ jupyter lab pubmed/PubMed_API.ipynb
 
 1. Copy any YAML in `prismapi/fields/registry/` as a starting point.
 2. Set `id: <field>__<review_type>`, `version`, `effective_date`, `label`, `summary`.
-3. Fill in the ten required sections: reporting, registries, databases, extraction template, risk-of-bias tool, effect sizes, synthesis, publication bias, certainty, and modules.
-4. Add any `qrp_warnings` and `citations`.
+3. Fill in the ten required sections: reporting, registries, databases, extraction template, risk of bias, effect sizes, synthesis, publication bias, certainty, and modules.
+4. Add any `branch_choices`, `qrp_warnings`, and `citations`.
 5. Validate:
 
    ```bash
    python -m prismapi.fields.validate
    ```
 
-The schema lives at `prismapi/fields/registry/_schema.json` (JSON Schema Draft 2020-12). It's enforced at startup, so a malformed YAML stops the app cleanly with an error message.
+The schema lives at `prismapi/fields/registry/_schema.json` (JSON Schema Draft 2020-12). It's enforced at startup, so a malformed YAML stops the app cleanly with an error message. The full authoring guide is `docs/field-config-spec.md`.
 
 ---
 
@@ -242,11 +235,13 @@ The schema lives at `prismapi/fields/registry/_schema.json` (JSON Schema Draft 2
 - Synthesis / meta-analysis engine (forest plots, funnel plots, pooling) — planned.
 - Publication-bias diagnostics — planned.
 - GRADE summary-of-findings tables and manuscript export — planned.
+- A conflict-resolution screen (conflicts are counted in the IRR panel; resolving them currently requires the RPC layer).
+- Member management after project creation (add collaborators at creation, or merge their work via Share / import).
 - Code-signing / notarisation — needs certificates.
-- CI matrix releases — not wired up.
+- CI — not wired up yet; tests run locally.
 
 ---
 
 ## License
 
-See `LICENSE`.
+GPL-3.0 — see `LICENSE`.

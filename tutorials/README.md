@@ -1,23 +1,25 @@
 # API tutorials
 
-Interactive, teachable versions of the per-database API pull scripts the
-desktop app generates at runtime. Open any notebook in Jupyter, fill in
-your credentials in `env_template`, and you can run a real search end to
-end while seeing every request, response, and decision the runtime script
-makes silently.
+Interactive, runnable walkthroughs of the per-database APIs the desktop
+app talks to. Open a notebook in Jupyter, set up the credentials it needs,
+and you can run a real search end to end while seeing every request and
+response the app's generated scripts handle silently.
 
-The runtime counterparts live under [`prismapi/services/search_scripts/`](../prismapi/services/search_scripts/):
-when the Search screen generates `pubmed_search.py` (or `crossref_search.py`,
-`openalex_search.py`, etc.), it follows the same request shape and field
-parsing demonstrated here.
+The runtime counterpart is the module
+[`prismapi/services/search_scripts.py`](../prismapi/services/search_scripts.py):
+when the Search screen generates `pubmed_search.py` (or
+`openalex_search.py`, `crossref_search.py`), it follows the same request
+shape and field parsing demonstrated here. The PubMed and ScienceDirect
+notebooks are code-first with inline comments; the Web of Science notebook
+adds step-by-step prose and screenshots.
 
 ## Per-database
 
-| Database | Notebook | Companion files |
+| Database | Notebook | Setup |
 |---|---|---|
-| PubMed | [`pubmed/PubMed_API.ipynb`](pubmed/PubMed_API.ipynb) | `requirements.txt`, `env_template` |
-| ScienceDirect (Elsevier) | [`sciencedirect/SciDir_API.ipynb`](sciencedirect/SciDir_API.ipynb) | — |
-| Web of Science | [`wos/WoS_API.ipynb`](wos/WoS_API.ipynb) | `env_template`, `example_processed_results.csv`, `screenshots/` |
+| PubMed | [`pubmed/PubMed_API.ipynb`](pubmed/PubMed_API.ipynb) | `pip install -r requirements.txt`; copy `env_template` to `.env` |
+| ScienceDirect (Elsevier) | [`sciencedirect/SciDir_API.ipynb`](sciencedirect/SciDir_API.ipynb) | `pip install elsapy`; create `config.json` with your API key (see the notebook's first cell) |
+| Web of Science | [`wos/WoS_API.ipynb`](wos/WoS_API.ipynb) | Paste your Starter API key into the config cell; sample output in `example_processed_results.csv` |
 
 ## Running a notebook
 
@@ -40,16 +42,15 @@ jupyter lab pubmed/PubMed_API.ipynb
 
 ## What goes here vs. what doesn't
 
-This directory holds **interactive teachable scripts** — Jupyter notebooks
-that walk through one database's API with prose, intermediate prints, and
-example output. New tutorials slot in as `tutorials/<database>/<name>.ipynb`
+This directory holds runnable Jupyter notebooks that each walk through one
+database's API. New tutorials slot in as `tutorials/<database>/<name>.ipynb`
 plus whatever requirements / env / sample-output files the notebook needs
 to run.
 
-What does **not** go here:
+What does not go here:
 
-- The runtime per-database scripts the app generates → those live in
-  `prismapi/services/search_scripts/`.
-- Methodology PDFs (PRISMA 2020 checklists, etc.) → those live in
+- The script templates the app generates at runtime — those live in
+  `prismapi/services/search_scripts.py`.
+- Methodology PDFs (PRISMA 2020 checklists, etc.) — those live in
   `docs/references/`.
-- App documentation → `docs/`.
+- App documentation — `docs/`.

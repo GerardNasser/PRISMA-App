@@ -40,10 +40,6 @@ class Settings(BaseSettings):
     trash_retention_days: int = Field(default=30, alias="PRISMAPI_TRASH_RETENTION_DAYS")
     snapshot_auto_cap: int = Field(default=10, alias="PRISMAPI_SNAPSHOT_AUTO_CAP")
 
-    # LLM advisory (off by default).
-    llm_advisory_enabled: bool = Field(default=False, alias="LLM_ADVISORY_ENABLED")
-    google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
-
     @property
     def db_path(self) -> Path:
         return self.app_data_dir / "prismapi.db"

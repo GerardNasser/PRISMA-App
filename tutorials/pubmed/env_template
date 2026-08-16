@@ -1,6 +1,5 @@
 EMAIL="Your_Email_Here"
-API_key="Your_API_here"
+API_KEY="Your_API_key_here"
 DATABASE="pubmed"
-SEARCH_QUERY="climate+change"
-RETTYPE="xml"
+SEARCH_QUERY="climate change"
 RETMODE="xml"

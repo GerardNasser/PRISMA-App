@@ -23,6 +23,7 @@ A `.prismaproj` is a zip containing **everything needed to reconstruct one proje
 ├── rob.jsonl
 ├── audit.jsonl
 ├── judgments.jsonl
+├── members.jsonl              ← project roster (roles travel with the project)
 └── assets/                    ← PDFs and exports keyed by sha256 (reserved)
 ```
 
@@ -31,20 +32,22 @@ A `.prismaproj` is a zip containing **everything needed to reconstruct one proje
 - Rows are sorted by stable key before serialisation (uuid string ascending).
 - JSONL lines use sorted keys, no whitespace, and a trailing newline.
 - The zip is built with a fixed mtime (`2020-01-01T00:00:00`).
-- Identical project state → identical bytes → identical SHA-256.
 
-This means you can verify "two installs hold the same state" by comparing bundle hashes, no diffing needed.
+Each data file is byte-deterministic for identical state, and the manifest
+records a SHA-256 per file, so per-file hashes can be compared across
+installs. Whole-bundle hashes differ between exports because the manifest
+embeds `exported_at`.
 
 ## Manifest
 
 ```json
 {
   "schema_version": 1,
-  "prismapi_version": "0.6.0-desktop",
+  "prismapi_version": "0.1.0-beta.1",
   "project_id": "...",
   "project_name": "Plant microbiome MA",
-  "project_field_config_id": "microbiome__16s_human",
-  "project_field_config_version": "0.1.0",
+  "project_field_config_id": "health__omics",
+  "project_field_config_version": "0.3.0",
   "exporter": {
     "id": "...",
     "last_name": "Nasser",
@@ -61,7 +64,7 @@ This means you can verify "two installs hold the same state" by comparing bundle
 }
 ```
 
-The importer refuses any bundle whose `schema_version` differs from this build's `SCHEMA_VERSION` constant. Migration scripts for older versions are added to `apps/core/src/prismapi/statefile/migrations/` as the schema evolves.
+The importer refuses any bundle whose `schema_version` differs from this build's `SCHEMA_VERSION` constant (`prismapi/statefile/schema.py`). It also rejects bundles containing files the manifest does not list, and bundles whose manifest counts disagree with the rows actually present.
 
 ## Merge rules
 
@@ -80,7 +83,13 @@ Most of the SR/MA data model is **naturally append-friendly** — each reviewer'
 | `codebooks` | Versioned, fast-forward | `codebook_parallel` |
 | `identities` | Upsert by id | `identity_drift` (same id, divergent attributes) |
 | `project` (metadata) | — | `project_metadata` (name / slug / branch_choices diverge) |
+| `project_members` | Union by (project, identity); local roles win | — |
 | `audit_log`, `judgment_calls` | Append-only union | — |
+
+For `protocol_parallel` and `codebook_parallel`, `keep_incoming` and
+`keep_both` insert the incoming body as a new version on top of the highest
+local version, so a merge can never collide with versions local added in
+the meantime.
 
 ## Resolution choices the user can pick
 

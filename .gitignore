@@ -181,7 +181,6 @@ cython_debug/
 .cursorindexingignore
 .DS_Store
 /docs/learning
-docs/field-config-spec.md
 
 # Local R scratch area (not part of the app)
 test_kit/
