@@ -1,6 +1,6 @@
 id: engineering__slr
-version: 0.2.0
-effective_date: "2026-05-13"
+version: 0.3.0
+effective_date: "2026-08-16"
 field: engineering
 review_type: slr
 label: "Engineering / software systematic literature review"
@@ -16,7 +16,10 @@ reporting:
 
 registries:
   primary: OSF
-  alternatives: [PROSPERO]
+  alternatives: []
+  notes: >
+    PROSPERO is not listed: it only accepts reviews with a health-related
+    outcome, which excludes typical reviews in this field.
 
 databases:
   required: [ieee_xplore, acm_digital_library, scopus, web_of_science]

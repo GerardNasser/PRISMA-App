@@ -1,6 +1,6 @@
 id: social__psychology
-version: 0.2.0
-effective_date: "2026-05-13"
+version: 0.3.0
+effective_date: "2026-08-16"
 field: social
 review_type: psychology
 label: "Psychology / behavioural science"
@@ -8,6 +8,20 @@ summary: >
   Meta-analyses in psychology and behavioural science. JARS-Quant reporting
   (APA), Hedges' g or correlation r as default effect sizes, multi-method
   publication bias diagnostics (Egger + p-curve + selection model).
+
+branch_choices:
+  - key: primary_design
+    label: "Primary study design"
+    required: false
+    description: >
+      Decides the risk-of-bias instrument. Randomised designs get Cochrane
+      RoB 2; non-randomised interventions get ROBINS-I; correlational and
+      longitudinal (prognostic-style) studies get QUIPS.
+    options:
+      - {value: rct, label: "Randomised experiment"}
+      - {value: quasi_experimental, label: "Quasi-experimental"}
+      - {value: correlational, label: "Correlational"}
+      - {value: longitudinal, label: "Longitudinal / prognostic"}
 
 reporting:
   primary: PRISMA_2020
@@ -46,7 +60,14 @@ extraction_template:
     - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
 
 risk_of_bias:
-  tool: ROBINS_I
+  tool: RoB_2
+  tool_by_choice:
+    choice_key: primary_design
+    map:
+      rct: RoB_2
+      quasi_experimental: ROBINS_I
+      correlational: QUIPS
+      longitudinal: QUIPS
 
 effect_sizes:
   default: smd_hedges_g

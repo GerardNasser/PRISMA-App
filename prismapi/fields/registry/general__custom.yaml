@@ -1,6 +1,6 @@
 id: general__custom
-version: 0.2.0
-effective_date: "2026-05-13"
+version: 0.3.0
+effective_date: "2026-08-16"
 field: general
 review_type: custom
 label: "General / custom — bring your own methodology"
@@ -8,6 +8,21 @@ summary: >
   Minimal preset — PRISMA 2020 + a generic extraction template + ROBINS-I.
   Pick this when none of the field-specific profiles match your topic. Tune
   defaults in the wizard.
+
+branch_choices:
+  - key: primary_design
+    label: "Primary study design"
+    required: false
+    description: >
+      Decides the risk-of-bias instrument. Randomised designs get Cochrane
+      RoB 2; non-randomised interventions get ROBINS-I; correlational and
+      longitudinal (prognostic-style) studies get QUIPS.
+    options:
+      - {value: rct, label: "Randomised controlled trial"}
+      - {value: nonrandomised_intervention, label: "Non-randomised intervention"}
+      - {value: observational_exposure, label: "Observational exposure"}
+      - {value: prognostic, label: "Prognostic / correlational"}
+      - {value: diagnostic_accuracy, label: "Diagnostic accuracy"}
 
 reporting:
   primary: PRISMA_2020
@@ -40,7 +55,15 @@ extraction_template:
     - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
 
 risk_of_bias:
-  tool: ROBINS_I
+  tool: RoB_2
+  tool_by_choice:
+    choice_key: primary_design
+    map:
+      rct: RoB_2
+      nonrandomised_intervention: ROBINS_I
+      observational_exposure: ROBINS_E
+      prognostic: QUIPS
+      diagnostic_accuracy: QUADAS_2
 
 effect_sizes:
   default: smd_hedges_g

@@ -1,6 +1,6 @@
 id: health__omics
-version: 0.2.0
-effective_date: "2026-05-13"
+version: 0.3.0
+effective_date: "2026-08-16"
 field: health
 review_type: omics
 label: "Health sciences — Genomics / Microbiome / Omics"
@@ -8,6 +8,18 @@ summary: >
   Reviews of microbiome, genomic, or other -omics studies. STORMS-aware
   extraction so primer / platform / pipeline differences are captured. Be
   cautious about pooling across non-comparable measurement protocols.
+
+branch_choices:
+  - key: primary_design
+    label: "Primary study design"
+    required: false
+    description: >
+      Decides the risk-of-bias instrument. Randomised designs get Cochrane
+      RoB 2; non-randomised interventions get ROBINS-I; correlational and
+      longitudinal (prognostic-style) studies get QUIPS.
+    options:
+      - {value: observational, label: "Observational (cohort / case-control / cross-sectional)"}
+      - {value: rct, label: "Randomised controlled trial"}
 
 reporting:
   primary: PRISMA_2020
@@ -52,6 +64,11 @@ extraction_template:
 
 risk_of_bias:
   tool: ROBINS_E
+  tool_by_choice:
+    choice_key: primary_design
+    map:
+      rct: RoB_2
+      observational: ROBINS_E
 
 effect_sizes:
   default: smd_hedges_g

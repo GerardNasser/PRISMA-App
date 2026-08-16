@@ -1,6 +1,6 @@
 id: health__diagnostic
-version: 0.2.0
-effective_date: "2026-05-13"
+version: 0.3.0
+effective_date: "2026-08-16"
 field: health
 review_type: diagnostic
 label: "Health sciences — Diagnostic test accuracy"
@@ -56,9 +56,12 @@ synthesis:
   model_default: random_effects_reml
   modules: [forest, funnel, subgroup, meta_regression, prediction_interval]
 
+# Egger-type funnel tests are misleading for diagnostic accuracy data;
+# Deeks' funnel-plot asymmetry test is the DTA standard (Deeks, Macaskill
+# & Irwig 2005, J Clin Epidemiol 58:882-93).
 publication_bias:
-  required_methods: [egger]
-  default_panel: [egger]
+  required_methods: [deeks]
+  default_panel: [deeks]
 
 certainty:
   framework: GRADE

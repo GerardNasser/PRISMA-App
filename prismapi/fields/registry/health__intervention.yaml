@@ -1,6 +1,6 @@
 id: health__intervention
-version: 0.2.0
-effective_date: "2026-05-13"
+version: 0.3.0
+effective_date: "2026-08-16"
 field: health
 review_type: intervention
 label: "Health sciences — Interventions / RCTs"
@@ -8,6 +8,20 @@ summary: >
   Reviews of clinical and public-health interventions. PRISMA 2020 reporting,
   Cochrane RoB 2 for randomised trials (or ROBINS-I for non-randomised),
   GRADE certainty, standardised mean difference / log OR pooling.
+
+branch_choices:
+  - key: primary_design
+    label: "Primary study design"
+    required: false
+    description: >
+      Decides the risk-of-bias instrument: randomised designs get Cochrane
+      RoB 2, non-randomised interventions get ROBINS-I (Sterne 2016).
+    options:
+      - {value: rct, label: "Randomised controlled trial"}
+      - {value: cluster_rct, label: "Cluster RCT"}
+      - {value: crossover_rct, label: "Crossover RCT"}
+      - {value: quasi_experimental, label: "Quasi-experimental"}
+      - {value: before_after, label: "Before-after (no randomisation)"}
 
 reporting:
   primary: PRISMA_2020
@@ -52,6 +66,14 @@ extraction_template:
 
 risk_of_bias:
   tool: RoB_2
+  tool_by_choice:
+    choice_key: primary_design
+    map:
+      rct: RoB_2
+      cluster_rct: RoB_2
+      crossover_rct: RoB_2
+      quasi_experimental: ROBINS_I
+      before_after: ROBINS_I
 
 effect_sizes:
   default: smd_hedges_g

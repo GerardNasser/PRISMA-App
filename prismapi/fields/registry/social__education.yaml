@@ -1,6 +1,6 @@
 id: social__education
-version: 0.2.0
-effective_date: "2026-05-13"
+version: 0.3.0
+effective_date: "2026-08-16"
 field: social
 review_type: education
 label: "Education / learning sciences"
@@ -8,6 +8,20 @@ summary: >
   Meta-analyses of educational interventions. Hedges' g with small-sample
   correction, RVE for dependent effect sizes from multi-arm or
   multi-outcome studies, WWC standards considered.
+
+branch_choices:
+  - key: primary_design
+    label: "Primary study design"
+    required: false
+    description: >
+      Decides the risk-of-bias instrument. Randomised designs get Cochrane
+      RoB 2; non-randomised interventions get ROBINS-I; correlational and
+      longitudinal (prognostic-style) studies get QUIPS.
+    options:
+      - {value: rct, label: "Randomised controlled trial"}
+      - {value: cluster_rct, label: "Cluster RCT"}
+      - {value: quasi_experimental, label: "Quasi-experimental"}
+      - {value: regression_discontinuity, label: "Regression discontinuity"}
 
 reporting:
   primary: PRISMA_2020
@@ -47,6 +61,13 @@ extraction_template:
 
 risk_of_bias:
   tool: ROBINS_I
+  tool_by_choice:
+    choice_key: primary_design
+    map:
+      rct: RoB_2
+      cluster_rct: RoB_2
+      quasi_experimental: ROBINS_I
+      regression_discontinuity: ROBINS_I
 
 effect_sizes:
   default: smd_hedges_g

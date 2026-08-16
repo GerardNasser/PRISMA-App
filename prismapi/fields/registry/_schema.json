@@ -45,29 +45,55 @@
       "type": "string",
       "description": "Review type within the field (e.g., 16s_human, metaregression)."
     },
-    "label": {"type": "string"},
-    "summary": {"type": "string"},
+    "label": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
     "branch_choices": {
       "type": "array",
       "description": "Up-front choices the user must make before the rest of the form renders (e.g., Schmidt-Hunter vs Hedges-Olkin for mgmt MA).",
       "items": {
         "type": "object",
-        "required": ["key", "label", "options"],
+        "required": [
+          "key",
+          "label",
+          "options"
+        ],
         "properties": {
-          "key": {"type": "string"},
-          "label": {"type": "string"},
-          "description": {"type": "string"},
-          "required": {"type": "boolean", "default": true},
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean",
+            "default": true
+          },
           "options": {
             "type": "array",
             "minItems": 2,
             "items": {
               "type": "object",
-              "required": ["value", "label"],
+              "required": [
+                "value",
+                "label"
+              ],
               "properties": {
-                "value": {"type": "string"},
-                "label": {"type": "string"},
-                "description": {"type": "string"}
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
               }
             }
           }
@@ -77,7 +103,10 @@
     },
     "reporting": {
       "type": "object",
-      "required": ["primary", "extensions"],
+      "required": [
+        "primary",
+        "extensions"
+      ],
       "properties": {
         "primary": {
           "type": "string",
@@ -85,38 +114,81 @@
         },
         "extensions": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "notes": {"type": "string"}
+        "notes": {
+          "type": "string"
+        }
       }
     },
     "registries": {
       "type": "object",
-      "required": ["primary", "alternatives"],
+      "required": [
+        "primary",
+        "alternatives"
+      ],
       "properties": {
-        "primary": {"type": "string"},
-        "alternatives": {"type": "array", "items": {"type": "string"}},
-        "suppressed": {"type": "array", "items": {"type": "string"}, "default": []},
-        "notes": {"type": "string"}
+        "primary": {
+          "type": "string"
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "suppressed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "notes": {
+          "type": "string"
+        }
       }
     },
     "databases": {
       "type": "object",
-      "required": ["required", "recommended"],
+      "required": [
+        "required",
+        "recommended"
+      ],
       "properties": {
-        "required": {"type": "array", "items": {"type": "string"}},
-        "recommended": {"type": "array", "items": {"type": "string"}},
-        "grey_literature_mandatory": {"type": "boolean", "default": false},
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recommended": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "grey_literature_mandatory": {
+          "type": "boolean",
+          "default": false
+        },
         "auto_filters": {
           "type": "array",
           "description": "Search filters to auto-inject (e.g., hooijmans_pubmed_animal).",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
     "extraction_template": {
       "type": "object",
-      "required": ["base", "fields"],
+      "required": [
+        "base",
+        "fields"
+      ],
       "properties": {
         "base": {
           "type": "string",
@@ -138,18 +210,49 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["key", "label", "type"],
+            "required": [
+              "key",
+              "label",
+              "type"
+            ],
             "properties": {
-              "key": {"type": "string"},
-              "label": {"type": "string"},
+              "key": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
               "type": {
                 "type": "string",
-                "enum": ["text", "longtext", "number", "integer", "boolean", "date", "select_one", "select_many", "doi", "accession"]
+                "enum": [
+                  "text",
+                  "longtext",
+                  "number",
+                  "integer",
+                  "boolean",
+                  "date",
+                  "select_one",
+                  "select_many",
+                  "doi",
+                  "accession"
+                ]
               },
-              "options": {"type": "array", "items": {"type": "string"}},
-              "group": {"type": "string"},
-              "required": {"type": "boolean", "default": false},
-              "help": {"type": "string"}
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "group": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "help": {
+                "type": "string"
+              }
             }
           }
         }
@@ -157,7 +260,9 @@
     },
     "risk_of_bias": {
       "type": "object",
-      "required": ["tool"],
+      "required": [
+        "tool"
+      ],
       "properties": {
         "tool": {
           "type": "string",
@@ -189,76 +294,221 @@
           "description": "Custom domains when tool == CUSTOM (e.g., microbiome STORMS-derived). Each domain has a label + judgement scale.",
           "items": {
             "type": "object",
-            "required": ["key", "label"],
+            "required": [
+              "key",
+              "label"
+            ],
             "properties": {
-              "key": {"type": "string"},
-              "label": {"type": "string"},
-              "help": {"type": "string"}
+              "key": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "help": {
+                "type": "string"
+              }
             }
           }
         },
         "scale": {
           "type": "array",
           "description": "Judgement levels.",
-          "items": {"type": "string"},
-          "default": ["low", "some_concerns", "high", "no_information"]
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "low",
+            "some_concerns",
+            "high",
+            "no_information"
+          ]
         },
         "applies_at_review_level": {
           "type": "boolean",
           "default": false,
           "description": "True for AMSTAR-2 / ROBIS / CEESAT (umbrella-level)."
+        },
+        "tool_by_choice": {
+          "type": "object",
+          "description": "Optional per-design tool override. choice_key names a branch_choices key; map sends that choice's value to the tool used for the project. Falls back to `tool` for unmapped values.",
+          "required": [
+            "choice_key",
+            "map"
+          ],
+          "properties": {
+            "choice_key": {
+              "type": "string"
+            },
+            "map": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "enum": [
+                  "RoB_2",
+                  "ROBINS_I",
+                  "ROBINS_E",
+                  "QUADAS_2",
+                  "QUIPS",
+                  "PROBAST",
+                  "PROBAST_AI",
+                  "QUADAS_AI",
+                  "SYRCLE",
+                  "JBI_PER_DESIGN",
+                  "CASP_QUAL",
+                  "MMAT_2018",
+                  "DYBA_DINGSOYR",
+                  "MARYLAND_SMS",
+                  "EPOC",
+                  "NOS_WARN",
+                  "CEESAT",
+                  "WWC_5",
+                  "NONE",
+                  "CUSTOM"
+                ]
+              }
+            }
+          }
         }
       }
     },
     "effect_sizes": {
       "type": "object",
-      "required": ["default", "allowed"],
+      "required": [
+        "default",
+        "allowed"
+      ],
       "properties": {
         "default": {
           "type": "string",
-          "enum": ["smd_hedges_g", "md", "log_or", "log_rr", "log_hr", "pcc", "lnrr", "nmd", "proportion_logit", "proportion_pft", "proportion_glmm", "auc_reitsma", "r", "rho_corrected", "none_narrative"]
+          "enum": [
+            "smd_hedges_g",
+            "md",
+            "log_or",
+            "log_rr",
+            "log_hr",
+            "pcc",
+            "lnrr",
+            "nmd",
+            "proportion_logit",
+            "proportion_pft",
+            "proportion_glmm",
+            "auc_reitsma",
+            "r",
+            "rho_corrected",
+            "none_narrative"
+          ]
         },
         "allowed": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "transform_notes": {"type": "string"}
+        "transform_notes": {
+          "type": "string"
+        }
       }
     },
     "synthesis": {
       "type": "object",
-      "required": ["model_default", "modules"],
+      "required": [
+        "model_default",
+        "modules"
+      ],
       "properties": {
         "model_default": {
           "type": "string",
-          "enum": ["random_effects_reml", "random_effects_dl", "random_effects_pm", "schmidt_hunter", "common_effect", "multilevel_rma_mv", "rve_cr2", "network_meta", "bayesian", "none_narrative", "meta_aggregation", "thematic", "framework", "realist_cmo", "meta_narrative", "cis"]
+          "enum": [
+            "random_effects_reml",
+            "random_effects_dl",
+            "random_effects_pm",
+            "schmidt_hunter",
+            "common_effect",
+            "multilevel_rma_mv",
+            "rve_cr2",
+            "network_meta",
+            "bayesian",
+            "none_narrative",
+            "meta_aggregation",
+            "thematic",
+            "framework",
+            "realist_cmo",
+            "meta_narrative",
+            "cis"
+          ]
         },
         "modules": {
           "type": "array",
           "description": "Engine modules enabled.",
           "items": {
             "type": "string",
-            "enum": ["forest", "funnel", "labbe", "baujat", "leave_one_out", "subgroup", "meta_regression", "knapp_hartung", "prediction_interval", "credibility_interval", "psychometric_corrections", "multilevel", "rve", "network", "bayesian", "synthesis_findings_table", "cmo_table", "thematic_themes"]
+            "enum": [
+              "forest",
+              "funnel",
+              "labbe",
+              "baujat",
+              "leave_one_out",
+              "subgroup",
+              "meta_regression",
+              "knapp_hartung",
+              "prediction_interval",
+              "credibility_interval",
+              "psychometric_corrections",
+              "multilevel",
+              "rve",
+              "network",
+              "bayesian",
+              "synthesis_findings_table",
+              "cmo_table",
+              "thematic_themes"
+            ]
           }
         },
-        "hk_adjustment_default": {"type": "boolean", "default": true},
-        "prediction_interval_default": {"type": "boolean", "default": true}
+        "hk_adjustment_default": {
+          "type": "boolean",
+          "default": true
+        },
+        "prediction_interval_default": {
+          "type": "boolean",
+          "default": true
+        }
       }
     },
     "publication_bias": {
       "type": "object",
-      "required": ["required_methods", "default_panel"],
+      "required": [
+        "required_methods",
+        "default_panel"
+      ],
       "properties": {
         "required_methods": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["egger", "rank_corr", "tes", "p_uniform", "p_curve", "z_curve", "top_10_precise", "trim_fill_sensitivity", "pet_peese", "maive", "selection_vevea", "selection_andrews_kasy", "robma"]
+            "enum": [
+              "deeks",
+              "egger",
+              "rank_corr",
+              "tes",
+              "p_uniform",
+              "p_curve",
+              "z_curve",
+              "top_10_precise",
+              "trim_fill_sensitivity",
+              "pet_peese",
+              "maive",
+              "selection_vevea",
+              "selection_andrews_kasy",
+              "robma"
+            ]
           }
         },
         "default_panel": {
           "type": "array",
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
         "mandatory": {
           "type": "boolean",
@@ -269,32 +519,88 @@
     },
     "certainty": {
       "type": "object",
-      "required": ["framework"],
+      "required": [
+        "framework"
+      ],
       "properties": {
         "framework": {
           "type": "string",
-          "enum": ["GRADE", "GRADE_CERQual", "ConQual", "NutriGrade", "GRADE_animal_no_large_effect_upgrade", "WWC_tiers", "narrative_only", "none"]
+          "enum": [
+            "GRADE",
+            "GRADE_CERQual",
+            "ConQual",
+            "NutriGrade",
+            "GRADE_animal_no_large_effect_upgrade",
+            "WWC_tiers",
+            "narrative_only",
+            "none"
+          ]
         },
-        "downgrade_domains": {"type": "array", "items": {"type": "string"}},
-        "upgrade_domains": {"type": "array", "items": {"type": "string"}},
-        "notes": {"type": "string"}
+        "downgrade_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "upgrade_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
       }
     },
     "modules": {
       "type": "object",
       "description": "Module enablement flags.",
       "properties": {
-        "screening": {"type": "boolean", "default": true},
-        "irr": {"type": "boolean", "default": true},
-        "extraction": {"type": "boolean", "default": true},
-        "risk_of_bias": {"type": "boolean", "default": true},
-        "synthesis_quantitative": {"type": "boolean", "default": true},
-        "publication_bias": {"type": "boolean", "default": true},
-        "certainty": {"type": "boolean", "default": true},
-        "prisma_flow": {"type": "boolean", "default": true},
-        "manuscript_export": {"type": "boolean", "default": true},
-        "microbiome_pipeline": {"type": "boolean", "default": false},
-        "school_choice_required": {"type": "boolean", "default": false}
+        "screening": {
+          "type": "boolean",
+          "default": true
+        },
+        "irr": {
+          "type": "boolean",
+          "default": true
+        },
+        "extraction": {
+          "type": "boolean",
+          "default": true
+        },
+        "risk_of_bias": {
+          "type": "boolean",
+          "default": true
+        },
+        "synthesis_quantitative": {
+          "type": "boolean",
+          "default": true
+        },
+        "publication_bias": {
+          "type": "boolean",
+          "default": true
+        },
+        "certainty": {
+          "type": "boolean",
+          "default": true
+        },
+        "prisma_flow": {
+          "type": "boolean",
+          "default": true
+        },
+        "manuscript_export": {
+          "type": "boolean",
+          "default": true
+        },
+        "microbiome_pipeline": {
+          "type": "boolean",
+          "default": false
+        },
+        "school_choice_required": {
+          "type": "boolean",
+          "default": false
+        }
       },
       "additionalProperties": false
     },
@@ -303,11 +609,26 @@
       "description": "QRP / pitfall warnings to surface in-UI for this field.",
       "items": {
         "type": "object",
-        "required": ["key", "message"],
+        "required": [
+          "key",
+          "message"
+        ],
         "properties": {
-          "key": {"type": "string"},
-          "message": {"type": "string"},
-          "severity": {"type": "string", "enum": ["info", "warn", "block"], "default": "warn"}
+          "key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warn",
+              "block"
+            ],
+            "default": "warn"
+          }
         }
       },
       "default": []
@@ -315,12 +636,16 @@
     "citations": {
       "type": "array",
       "description": "Authoritative citations underpinning this config.",
-      "items": {"type": "string"}
+      "items": {
+        "type": "string"
+      }
     },
     "verify_flags": {
       "type": "array",
       "description": "Items flagged for web-verification before user-facing copy goes live.",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "default": []
     }
   },

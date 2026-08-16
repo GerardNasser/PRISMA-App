@@ -51,6 +51,21 @@ BUILTIN_ROB_TOOLS: dict[str, dict] = {
         ],
         "scale": ["low", "moderate", "serious", "critical", "no_information"],
     },
+    "QUIPS": {
+        # Hayden JA, van der Windt DA, Cartwright JL, Côté P, Bombardier C.
+        # Assessing bias in studies of prognostic factors. Ann Intern Med
+        # 2013;158(4):280-286.
+        "label": "QUIPS (prognostic / correlational studies)",
+        "domains": [
+            {"key": "participation", "label": "Study participation"},
+            {"key": "attrition", "label": "Study attrition"},
+            {"key": "factor_measurement", "label": "Prognostic factor measurement"},
+            {"key": "outcome_measurement", "label": "Outcome measurement"},
+            {"key": "confounding", "label": "Study confounding"},
+            {"key": "analysis_reporting", "label": "Statistical analysis and reporting"},
+        ],
+        "scale": ["low", "moderate", "high"],
+    },
     "ROBINS_E": {
         "label": "ROBINS-E (exposure / observational)",
         "domains": [
@@ -190,9 +205,20 @@ def _project_field_config(project: Project) -> FieldConfig:
 # --------------------------------------------------------------------------
 
 
-def resolve_rob_spec(cfg: FieldConfig) -> dict:
+def resolve_rob_spec(cfg: FieldConfig, branch_choices: dict | None = None) -> dict:
+    """Resolve the RoB tool spec, honouring per-design overrides.
+
+    A config may declare `risk_of_bias.tool_by_choice`, mapping one of the
+    project's branch-choice values to a tool (RoB 2 for randomized designs,
+    ROBINS-I for non-randomized interventions, and so on). Unmapped or
+    missing choices fall back to the config's default `tool`.
+    """
     rob = cfg.data["risk_of_bias"]
     tool = rob["tool"]
+    by_choice = rob.get("tool_by_choice")
+    if by_choice and branch_choices:
+        chosen = branch_choices.get(by_choice["choice_key"])
+        tool = by_choice["map"].get(chosen, tool)
     if tool == "CUSTOM":
         return {
             "tool": "CUSTOM",
@@ -268,7 +294,7 @@ async def upsert_rob(
     cfg = _project_field_config(project)
     if not cfg.data.get("modules", {}).get("risk_of_bias", True):
         raise ValueError("Risk-of-bias module is disabled for this field config")
-    spec = resolve_rob_spec(cfg)
+    spec = resolve_rob_spec(cfg, project.branch_choices)
     domain_keys = {d["key"] for d in spec["domains"]}
     scale = set(spec["scale"])
     # Validate each judgement

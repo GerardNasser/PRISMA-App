@@ -133,7 +133,7 @@ async def rob_tool(
         raise RpcError(NOT_FOUND, "Project field config not loaded")
     if not cfg.data.get("modules", {}).get("risk_of_bias", True):
         raise RpcError(CONFLICT, "Risk-of-bias module is disabled for this project")
-    return resolve_rob_spec(cfg)
+    return resolve_rob_spec(cfg, project.branch_choices)
 
 
 class RoBSave(BaseModel):

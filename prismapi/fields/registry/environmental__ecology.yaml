@@ -1,6 +1,6 @@
 id: environmental__ecology
-version: 0.2.0
-effective_date: "2026-05-13"
+version: 0.3.0
+effective_date: "2026-08-16"
 field: environmental
 review_type: ecology
 label: "Environmental / ecology"
@@ -16,7 +16,11 @@ reporting:
 
 registries:
   primary: OSF
-  alternatives: [PROSPERO]
+  alternatives: [PROCEED]
+  notes: >
+    PROCEED (proceedevidence.info) is CEE's registry for environmental
+    evidence syntheses. PROSPERO is not listed: it only accepts reviews
+    with a health-related outcome.
 
 databases:
   required: [web_of_science, scopus]
@@ -45,8 +49,19 @@ extraction_template:
     - {key: sd_control, label: "SD (control)", type: number, group: results}
     - {key: notes, label: "Reviewer notes", type: longtext, group: meta}
 
+# CEESAT appraises whole evidence syntheses, not primary studies, so it is
+# wrong here (see Frampton et al. 2022 for study-level principles). These
+# domains adapt the standard internal-validity structure to field studies.
 risk_of_bias:
-  tool: CEESAT
+  tool: CUSTOM
+  domains:
+    - {key: confounding, label: "Confounding / baseline differences between compared groups"}
+    - {key: selection, label: "Selection of sites, plots, or subjects into the study"}
+    - {key: performance, label: "Performance: unintended differences in conditions between groups"}
+    - {key: detection, label: "Detection: measurement of the response variable"}
+    - {key: attrition, label: "Attrition: missing or incomplete outcome data"}
+    - {key: reporting, label: "Selective reporting of outcomes or analyses"}
+  scale: [low, some_concerns, high, no_information]
 
 effect_sizes:
   default: lnrr
@@ -62,7 +77,10 @@ publication_bias:
 
 certainty:
   framework: GRADE
-  notes: GRADE adapted (Konno & Pullin 2020) is acceptable in environmental evidence; CEESAT for synthesis-level appraisal.
+  notes: >
+    GRADE, adapted to environmental evidence per the CEE guidelines. CEESAT
+    is a synthesis-level appraisal tool (it rates whole reviews) — use it on
+    the finished review, not on individual studies.
 
 modules:
   screening: true
@@ -86,3 +104,5 @@ qrp_warnings:
 citations:
   - "Haddaway NR, Macura B, Whaley P, Pullin AS. 2018. ROSES. Environ Evid 7:7."
   - "Nakagawa S, Santos ESA. 2012. Methodological issues and advances in biological meta-analysis."
+  - "Frampton G, Whaley P, Bennett M, et al. 2022. Principles and framework for assessing the risk of bias for studies included in comparative quantitative environmental systematic reviews. Environ Evid 11:12."
+  - "Collaboration for Environmental Evidence. 2022. Guidelines and Standards for Evidence Synthesis in Environmental Management, v5.1. environmentalevidence.org."
