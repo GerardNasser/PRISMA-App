@@ -14,7 +14,6 @@ from gui.rpc_client import RpcError
 from gui.widgets import Badge, Card, Field, GhostButton, Helper, PrimaryButton
 from prismapi.db.models.identity import ORCID_PATTERN
 
-
 # Pretty labels per `field` cluster so the wizard reads like a human pamphlet.
 _FIELD_BLURBS = {
     "health": (
@@ -109,7 +108,7 @@ class NewProjectFrame(ctk.CTkFrame):
             ("confirm", "Confirm"),
         ]
         idx = next(i for i, (s, _) in enumerate(steps) if s == self.step)
-        for i, (s, lbl) in enumerate(steps):
+        for i, (_s, lbl) in enumerate(steps):
             current = i == idx
             colour = T.PRISM_700 if current or i < idx else T.INK_MUTE
             bg = T.PRISM_100 if current else "transparent"
@@ -711,7 +710,7 @@ class NewProjectFrame(ctk.CTkFrame):
                         "reviewer_config": self.reviewer_cfg,
                     },
                 )
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 # The project exists but the reviewer config didn't stick —
                 # say so loudly, or Search/Codebook stay locked with no clue.
                 self.app.toast(
@@ -737,7 +736,7 @@ class NewProjectFrame(ctk.CTkFrame):
                         "members.enroll",
                         {"project_id": proj["id"], **rater},
                     )
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     self.app.toast(
                         f"Could not enroll {rater['last_name']}",
                         f"{e} — they can also be merged in later via Share / import.",
@@ -747,5 +746,5 @@ class NewProjectFrame(ctk.CTkFrame):
             self.app.show_project(proj["id"])
         except RpcError as e:
             self.app.toast("Couldn't create project", e.message, variant="danger")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't create project", str(e), variant="danger")

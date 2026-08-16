@@ -41,7 +41,16 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "RUF"]
-ignore = ["E501"]
+# E501: long lines are fine at 100 with occasional overruns.
+# RUF001/2/3: α, κ, and en dashes are intentional in an IRR tool's UI
+# strings and docstrings.
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+# Importing the handler modules IS the registration mechanism.
+"prismapi/rpc/handlers/__init__.py" = ["F401"]
+# PicoIn's field names are the PICO wire format (P/I/C/O/T/S).
+"prismapi/rpc/handlers/projects.py" = ["E741"]
 
 [tool.mypy]
 python_version = "3.11"

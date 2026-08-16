@@ -3,8 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy import Uuid
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from prismapi.db.base import Base, SoftDeleteMixin, TimestampMixin
@@ -49,7 +48,7 @@ class Protocol(Base, TimestampMixin, SoftDeleteMixin):
     #   tiebreaker_identity_id (UUID | None).
     reviewer_config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    project: Mapped["Project"] = relationship(lazy="selectin")
+    project: Mapped[Project] = relationship(lazy="selectin")
 
 
 class PicoElement(Base, TimestampMixin):

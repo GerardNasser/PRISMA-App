@@ -8,11 +8,10 @@ relationship `cascade='all, delete-orphan'` for child rows, and via FK
 
 from __future__ import annotations
 
+import shutil
 import uuid
 from datetime import timedelta
 from typing import Any
-
-import shutil
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +32,6 @@ from prismapi.db.models import (
 )
 from prismapi.services.audit import record_audit
 
-
 # Model registry for trash operations.
 _TRASHABLE: dict[str, type] = {
     "project": Project,
@@ -53,6 +51,7 @@ async def soft_delete(
     entity_id: uuid.UUID,
     actor_identity_id: uuid.UUID | None = None,
 ) -> Any:
+    """Set deleted_at on one row (project, search, decision, ...); commits."""
     model = _TRASHABLE.get(entity_type)
     if model is None:
         raise ValueError(f"Soft-delete not supported for entity: {entity_type}")
@@ -81,6 +80,7 @@ async def restore(
     entity_id: uuid.UUID,
     actor_identity_id: uuid.UUID | None = None,
 ) -> Any:
+    """Clear deleted_at on one trashed row; commits."""
     model = _TRASHABLE.get(entity_type)
     if model is None:
         raise ValueError(f"Restore not supported for entity: {entity_type}")

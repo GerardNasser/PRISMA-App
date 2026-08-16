@@ -35,6 +35,7 @@ async def upsert_decision(
     notes: str | None = None,
     confidence: int = 3,
 ) -> ScreeningDecision:
+    """Create or update this reviewer's decision for (cluster, stage)."""
     if stage not in {"title_abstract", "full_text"}:
         raise ValueError(f"Unknown stage: {stage}")
     if decision not in {"include", "exclude", "maybe"}:
@@ -155,6 +156,7 @@ async def resolve_conflict(
     final_decision: str,
     rationale: str,
 ) -> ConflictResolution:
+    """Record the arbiter's final decision for a conflicted (cluster, stage)."""
     if final_decision not in {"include", "exclude"}:
         raise ValueError("Conflict resolution decision must be include or exclude")
     existing = await session.scalar(

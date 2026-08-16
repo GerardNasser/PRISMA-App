@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import customtkinter as ctk
 from tkinter import filedialog
+
+import customtkinter as ctk
 
 from gui import theme as T
 from gui.widgets import Badge, Card, Helper, PrimaryButton, SecondaryButton

@@ -114,5 +114,5 @@ class OnboardingFrame(ctk.CTkFrame):
             self.app.show_projects()
         except RpcError as e:
             self.error.configure(text=e.message)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.error.configure(text=str(e))

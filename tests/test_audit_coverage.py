@@ -14,7 +14,6 @@ from sqlalchemy import func, select
 from prismapi.db.base import Base, get_engine, get_sessionmaker
 from prismapi.db.models import AuditLog, Project
 
-
 pytestmark = pytest.mark.asyncio
 
 

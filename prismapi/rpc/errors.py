@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # Standard JSON-RPC 2.0 codes
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600

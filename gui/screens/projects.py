@@ -47,7 +47,7 @@ class ProjectsFrame(ctk.CTkFrame):
             child.destroy()
         try:
             res = self.app.rpc.call("projects.list", {"include_trash": self.show_trash})
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't load projects", str(e), variant="danger")
             return
         projects = [p for p in res["projects"] if (p["deleted_at"] is not None) == self.show_trash]
@@ -123,7 +123,7 @@ class ProjectsFrame(ctk.CTkFrame):
             self.app.rpc.call("projects.restore", {"project_id": project_id})
             self.app.toast("Project restored", variant="ok")
             self.refresh()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't restore", str(e), variant="danger")
 
     def _delete(self, project_id: str, name: str) -> None:
@@ -140,5 +140,5 @@ class ProjectsFrame(ctk.CTkFrame):
             self.app.rpc.call("projects.soft_delete", {"project_id": project_id})
             self.app.toast("Project moved to trash", variant="ok")
             self.refresh()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't delete", str(e), variant="danger")

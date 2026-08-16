@@ -8,7 +8,7 @@ import pytest
 
 from prismapi.db.base import Base, get_engine, get_sessionmaker
 from prismapi.db.models import Project
-
+from prismapi.rpc.errors import RpcError
 
 pytestmark = pytest.mark.asyncio
 
@@ -65,7 +65,7 @@ async def test_members_enroll_orcid(dispatcher, project_id):
 
 
 async def test_members_enroll_rejects_invalid_role(dispatcher, project_id):
-    with pytest.raises(Exception):
+    with pytest.raises(RpcError):
         await dispatcher.call(
             "members.enroll",
             {
@@ -78,7 +78,7 @@ async def test_members_enroll_rejects_invalid_role(dispatcher, project_id):
 
 
 async def test_members_enroll_requires_orcid_or_email(dispatcher, project_id):
-    with pytest.raises(Exception):
+    with pytest.raises(RpcError):
         await dispatcher.call(
             "members.enroll",
             {

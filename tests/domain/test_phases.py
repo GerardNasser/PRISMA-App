@@ -1,6 +1,10 @@
-import pytest
-
-from prismapi.domain.phases import Phase, PHASE_ORDER, next_phase
+from prismapi.domain.phases import (
+    PHASE_ORDER,
+    GateState,
+    Phase,
+    gate_satisfied,
+    next_phase,
+)
 
 
 def test_phase_order_is_canonical():
@@ -32,8 +36,6 @@ def test_phase_values_are_lowercase_strings():
     for phase in Phase:
         assert phase.value == phase.value.lower()
 
-
-from prismapi.domain.phases import GateState, gate_satisfied
 
 
 def test_gate_setup_always_satisfied():

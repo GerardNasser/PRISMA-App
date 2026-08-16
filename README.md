@@ -238,7 +238,7 @@ The schema lives at `prismapi/fields/registry/_schema.json` (JSON Schema Draft 2
 - A conflict-resolution screen (conflicts are counted in the IRR panel; resolving them currently requires the RPC layer).
 - Member management after project creation (add collaborators at creation, or merge their work via Share / import).
 - Code-signing / notarisation — needs certificates.
-- CI — not wired up yet; tests run locally.
+- CI release builds — tests and lint run in GitHub Actions on every push; release bundles are still built by hand.
 
 ---
 

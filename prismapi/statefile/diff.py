@@ -50,7 +50,6 @@ from prismapi.db.models import (
 from prismapi.db.models.protocol import PicoElement, Protocol
 from prismapi.statefile.schema import Manifest
 
-
 CONFLICT_KEYS = {
     "project_metadata",
     "protocol_parallel",

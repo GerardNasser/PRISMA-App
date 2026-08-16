@@ -13,10 +13,9 @@ user can inspect, modify, and re-run.
 from __future__ import annotations
 
 import json
-import re
 import textwrap
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -497,7 +496,7 @@ def generate_script(
 ) -> dict[str, str]:
     """Return {script: str, suggested_filename: str, suggested_output: str}."""
     applied_filters = applied_filters or []
-    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
     script_name = f"{project_slug}_{database}_{timestamp}.py"
     output = output_path or f"{project_slug}_{database}_{timestamp}.json"
     tpl = _TEMPLATES.get(database, GENERIC_TEMPLATE)
@@ -512,7 +511,7 @@ def generate_script(
         date_from=date_from,
         date_to=date_to,
         output=output,
-        created_at=datetime.now(tz=timezone.utc).isoformat(),
+        created_at=datetime.now(tz=UTC).isoformat(),
     )
     return {
         "script": body,
@@ -554,7 +553,7 @@ async def import_results(
         applied_filters=applied_filters,
         options={"imported_from": str(input_path), "envelope": fmt},
         status="completed",
-        executed_at=datetime.now(tz=timezone.utc),
+        executed_at=datetime.now(tz=UTC),
         hit_count=0,
     )
     session.add(search)
@@ -621,7 +620,3 @@ async def import_results(
         "skipped": skipped,
         "hit_count": inserted,
     }
-
-
-def slugify(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:80] or "project"

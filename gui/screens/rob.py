@@ -5,7 +5,7 @@ from __future__ import annotations
 import customtkinter as ctk
 
 from gui import theme as T
-from gui.widgets import Badge, Card, Field, Helper, PrimaryButton, SecondaryButton
+from gui.widgets import Badge, Card, Field, Helper, PrimaryButton
 
 
 class RoBPanel(ctk.CTkFrame):
@@ -58,7 +58,7 @@ class RoBPanel(ctk.CTkFrame):
     def _load(self) -> None:
         try:
             self.spec = self.app.rpc.call("rob.tool", {"project_id": self.project["id"]})
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             Helper(self.form_wrap, f"RoB tool unavailable: {e}").pack(pady=20)
             return
         self.tool_badge.configure(text=self.spec["tool"])
@@ -66,7 +66,7 @@ class RoBPanel(ctk.CTkFrame):
             self.clusters = self.app.rpc.call(
                 "dedup.clusters.list", {"project_id": self.project["id"], "limit": 1000}
             )["clusters"]
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't load clusters", str(e), variant="danger")
             self.clusters = []
         try:
@@ -75,7 +75,7 @@ class RoBPanel(ctk.CTkFrame):
             self.mine_by_cluster = {
                 r["cluster_id"]: r for r in rows if r["reviewer_identity_id"] == me
             }
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't load saved assessments", str(e), variant="danger")
             self.mine_by_cluster = {}
         for c in self.cluster_list.winfo_children():
@@ -131,7 +131,7 @@ class RoBPanel(ctk.CTkFrame):
                 inner,
                 "Judgement",
                 kind="select",
-                options=[""] + list(scale),
+                options=["", *scale],
                 initial=prior.get("judgement") or "",
             )
             judgement.pack(fill="x", pady=(2, 6))
@@ -167,5 +167,5 @@ class RoBPanel(ctk.CTkFrame):
             )
             self.mine_by_cluster[self.active_cluster["id"]] = saved
             self.app.toast("RoB saved", variant="ok")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Save failed", str(e), variant="danger")

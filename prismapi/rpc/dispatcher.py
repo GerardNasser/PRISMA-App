@@ -19,8 +19,8 @@ from pydantic import BaseModel, ValidationError
 from prismapi.db.base import get_sessionmaker
 from prismapi.rpc.errors import (
     INTERNAL_ERROR,
-    METHOD_NOT_FOUND,
     INVALID_PARAMS,
+    METHOD_NOT_FOUND,
     RpcError,
 )
 
@@ -31,7 +31,7 @@ HandlerFn = Callable[..., Awaitable[Any]]
 
 
 class _Registration:
-    __slots__ = ("fn", "params_model", "wants_session", "wants_identity")
+    __slots__ = ("fn", "params_model", "wants_identity", "wants_session")
 
     def __init__(
         self,
@@ -66,7 +66,7 @@ def rpc(method: str) -> Callable[[HandlerFn], HandlerFn]:
         # Resolve PEP-563 string annotations to actual classes.
         try:
             hints = typing.get_type_hints(fn)
-        except Exception:  # noqa: BLE001
+        except Exception:
             hints = {}
         params_model: type[BaseModel] | None = None
         wants_session = False
@@ -123,13 +123,13 @@ class Dispatcher:
                     return await reg.fn(**kwargs)
                 except RpcError:
                     raise
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     log.exception("Handler %s failed", method)
                     raise RpcError(INTERNAL_ERROR, str(exc)) from exc
         try:
             return await reg.fn(**kwargs)
         except RpcError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.exception("Handler %s failed", method)
             raise RpcError(INTERNAL_ERROR, str(exc)) from exc

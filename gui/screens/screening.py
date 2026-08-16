@@ -193,7 +193,7 @@ class ScreeningPanel(ctk.CTkFrame):
                 "screening.queue",
                 {"project_id": self.project["id"], "stage": self.stage, "limit": 1000},
             )["clusters"]
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.clusters = []
             self.load_error = str(e)
             self.app.toast("Couldn't load clusters", str(e), variant="danger")
@@ -606,7 +606,7 @@ class ScreeningPanel(ctk.CTkFrame):
                     "exclusion_code": exclusion_code,
                 },
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't record decision", str(e), variant="danger")
             return
         # Update local decisions cache + clear armed rule on exclude.

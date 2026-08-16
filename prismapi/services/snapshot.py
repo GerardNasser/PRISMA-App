@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -46,7 +46,7 @@ async def take_snapshot(
     """Take a snapshot by exporting the project as a `.prismaproj` to disk."""
     from prismapi.statefile.exporter import export_project  # lazy to avoid cycle
 
-    ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
     label = label or f"{kind} {ts}"
     target_dir = _snapshot_dir_for(project.id)
     safe_label = "".join(c for c in label if c.isalnum() or c in "-_") or "snapshot"
@@ -109,6 +109,7 @@ async def _enforce_auto_cap(session: AsyncSession, *, project_id: uuid.UUID) -> 
 async def list_snapshots(
     session: AsyncSession, *, project_id: uuid.UUID
 ) -> list[SnapshotModel]:
+    """All snapshot rows for a project, newest first."""
     rows = (
         (
             await session.execute(
@@ -129,6 +130,7 @@ async def delete_snapshot(
     snapshot_id: uuid.UUID,
     actor_identity_id: uuid.UUID | None = None,
 ) -> None:
+    """Delete a snapshot row and its file on disk; commits."""
     snap = await session.get(SnapshotModel, snapshot_id)
     if snap is None:
         return

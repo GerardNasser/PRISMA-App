@@ -26,10 +26,10 @@ import customtkinter as ctk
 
 from gui import theme as T
 from gui.rpc_client import RpcClient
-from gui.screens.onboarding import OnboardingFrame
-from gui.screens.projects import ProjectsFrame
 from gui.screens.new_project import NewProjectFrame
+from gui.screens.onboarding import OnboardingFrame
 from gui.screens.project import ProjectFrame
+from gui.screens.projects import ProjectsFrame
 from gui.screens.settings import SettingsFrame
 from gui.widgets import Toast
 
@@ -210,11 +210,11 @@ class PrismAPIApp(ctk.CTk):
                 try:
                     if not widget.winfo_exists():
                         return
-                except Exception:  # noqa: BLE001
+                except Exception:
                     return
             try:
                 result = future.result()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 if on_error is not None:
                     on_error(exc)
                 else:
@@ -236,14 +236,14 @@ class PrismAPIApp(ctk.CTk):
         try:
             if frame.winfo_exists():
                 frame.after_idle(frame.refresh)
-        except Exception:  # noqa: BLE001 - stale frame reference after nav
+        except Exception:
             self.active_project_frame = None
 
     def _on_close(self) -> None:
         """Stop the background asyncio loop before tearing down Tk."""
         try:
             self.rpc.shutdown()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         self.destroy()
 
@@ -251,5 +251,5 @@ class PrismAPIApp(ctk.CTk):
     def toast(self, title: str, description: str = "", variant: str = "info") -> None:
         try:
             Toast(self, title, description, variant=variant)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.warning("toast failed: %s", exc)

@@ -32,7 +32,7 @@ class RecordCluster(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     merge_graph: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    members: Mapped[list["RecordClusterMember"]] = relationship(
+    members: Mapped[list[RecordClusterMember]] = relationship(
         back_populates="cluster", cascade="all, delete-orphan", lazy="selectin"
     )
 

@@ -120,7 +120,7 @@ class CodebookPanel(ctk.CTkFrame):
         for idx, fld in getattr(self, "_rationale_fields", {}).items():
             try:
                 self._update(idx, "rationale", fld.get())
-            except Exception:  # noqa: BLE001 - widget already destroyed
+            except Exception:
                 continue
         valid = [r for r in self.rules if r["code"].strip() and r["rationale"].strip()]
         if not valid:
@@ -145,5 +145,5 @@ class CodebookPanel(ctk.CTkFrame):
             )
             self.app.toast(f"Codebook saved (v{res['version']})", variant="ok")
             self._load()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't save codebook", str(e), variant="danger")

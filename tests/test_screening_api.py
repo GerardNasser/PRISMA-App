@@ -57,7 +57,7 @@ async def _make_project_with_clusters(dispatcher, n: int = 6) -> tuple[str, list
 @pytest.mark.asyncio
 async def test_single_reviewer_irr_returns_nulls(dispatcher, local_identity):
     pid, clusters = await _make_project_with_clusters(dispatcher, n=4)
-    for cid, d in zip(clusters, ["include", "include", "exclude", "exclude"]):
+    for cid, d in zip(clusters, ["include", "include", "exclude", "exclude"], strict=False):
         await dispatcher.call(
             "screening.decision",
             {"project_id": pid, "cluster_id": cid, "stage": "title_abstract", "decision": d},
@@ -74,7 +74,7 @@ async def test_two_reviewer_irr_and_conflict_resolve(dispatcher, local_identity)
     pid, clusters = await _make_project_with_clusters(dispatcher, n=6)
 
     local_decisions = ["include", "include", "exclude", "exclude", "include", "exclude"]
-    for cid, d in zip(clusters, local_decisions):
+    for cid, d in zip(clusters, local_decisions, strict=False):
         await dispatcher.call(
             "screening.decision",
             {"project_id": pid, "cluster_id": cid, "stage": "title_abstract", "decision": d},
@@ -86,7 +86,7 @@ async def test_two_reviewer_irr_and_conflict_resolve(dispatcher, local_identity)
     Session = get_sessionmaker()
     foreign_decisions = ["include", "include", "exclude", "exclude", "include", "include"]
     async with Session() as session:
-        for cid, d in zip(clusters, foreign_decisions):
+        for cid, d in zip(clusters, foreign_decisions, strict=False):
             session.add(
                 ScreeningDecision(
                     project_id=uuid.UUID(pid),

@@ -3,8 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint
-from sqlalchemy import Uuid
+from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from prismapi.db.base import Base, SoftDeleteMixin, TimestampMixin
@@ -28,8 +27,8 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     field_config_version: Mapped[str] = mapped_column(String(20), nullable=False)
     branch_choices: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    owner: Mapped["Identity"] = relationship(lazy="selectin")
-    members: Mapped[list["ProjectMember"]] = relationship(
+    owner: Mapped[Identity] = relationship(lazy="selectin")
+    members: Mapped[list[ProjectMember]] = relationship(
         back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -48,5 +47,5 @@ class ProjectMember(Base, TimestampMixin):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="reviewer")
     # roles: owner | reviewer | read_only
 
-    project: Mapped["Project"] = relationship(back_populates="members", lazy="selectin")
-    identity: Mapped["Identity"] = relationship(lazy="selectin")
+    project: Mapped[Project] = relationship(back_populates="members", lazy="selectin")
+    identity: Mapped[Identity] = relationship(lazy="selectin")

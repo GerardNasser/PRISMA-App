@@ -242,6 +242,10 @@ async def upsert_extraction(
     status: str = "draft",
     notes: str | None = None,
 ) -> Extraction:
+    """Create or update this reviewer's extraction for a cluster.
+
+    Submitted payloads must validate against the config's template; drafts
+    may be incomplete."""
     cfg = _project_field_config(project)
     errors = _validate_extraction_payload(cfg, payload)
     if errors and status == "submitted":
@@ -291,6 +295,9 @@ async def upsert_rob(
     overall: str | None = None,
     notes: str | None = None,
 ) -> RoBAssessment:
+    """Create or update this reviewer's RoB assessment for a cluster.
+
+    Judgements are validated against the resolved tool's domains and scale."""
     cfg = _project_field_config(project)
     if not cfg.data.get("modules", {}).get("risk_of_bias", True):
         raise ValueError("Risk-of-bias module is disabled for this field config")

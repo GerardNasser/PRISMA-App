@@ -14,7 +14,7 @@ import json
 import uuid
 import zipfile
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -258,7 +258,7 @@ async def export_project(
             email=exporter.email,
             display_name=exporter.display_name,
         ),
-        exported_at=datetime.now(tz=timezone.utc),
+        exported_at=datetime.now(tz=UTC),
         counts=counts,
         files=[
             FileChecksum(

@@ -18,8 +18,7 @@ from tkinter import filedialog
 import customtkinter as ctk
 
 from gui import theme as T
-from gui.widgets import Badge, Card, Field, GhostButton, Helper, PrimaryButton, SecondaryButton
-
+from gui.widgets import Badge, Card, Field, Helper, PrimaryButton, SecondaryButton
 
 _DB_BLURBS = {
     "pubmed": "NCBI E-utilities (no key needed; bumped rate limit with NCBI_API_KEY).",
@@ -157,7 +156,7 @@ class SearchPanel(ctk.CTkFrame):
         ).pack(anchor="w")
         try:
             res = self.app.rpc.call("searches.list", {"project_id": self.project["id"]})
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             Helper(self.history_inner, f"Couldn't load history: {e}").pack(anchor="w", pady=(8, 0))
             return
         if not res["searches"]:
@@ -208,7 +207,7 @@ class SearchPanel(ctk.CTkFrame):
                     "date_to": self.dt_field.get() or "",
                 },
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't generate script", str(e), variant="danger")
             return
 
@@ -222,7 +221,7 @@ class SearchPanel(ctk.CTkFrame):
             return
         try:
             Path(target).write_text(res["script"], encoding="utf-8")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't write script", str(e), variant="danger")
             return
 
@@ -266,7 +265,7 @@ class SearchPanel(ctk.CTkFrame):
         try:
             with open(path, encoding="utf-8", errors="replace") as fh:
                 payload = fh.read()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't read file", str(e), variant="danger")
             return
         def _done(res: dict) -> None:

@@ -88,7 +88,7 @@ class DedupPanel(ctk.CTkFrame):
                 "dedup.clusters.list",
                 {"project_id": self.project["id"], "limit": self._LIMIT},
             )["clusters"]
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             Helper(self.summary_inner, f"Couldn't load clusters: {e}").pack(anchor="w")
             return
         count_text = f"{len(clusters)} cluster{'s' if len(clusters) != 1 else ''}"

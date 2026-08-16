@@ -49,6 +49,7 @@ async def upsert_foreign_identity(
     email: str | None = None,
     institution: str | None = None,
 ) -> Identity:
+    """Find an identity by normalised ORCID/email, or create a foreign one."""
     last_name = last_name.strip()
     if not last_name:
         raise RpcError(VALIDATION, "Last name is required", {"field": "last_name"})
@@ -94,6 +95,7 @@ async def enroll_member(
     institution: str | None = None,
     role: str,
 ) -> ProjectMember:
+    """Add an identity to a project's roster; rejects duplicates and bad roles."""
     if role not in _VALID_ROLES:
         raise RpcError(
             VALIDATION,
@@ -130,6 +132,7 @@ async def enroll_member(
 async def list_members(
     session: AsyncSession, *, project_id: uuid.UUID,
 ) -> list[ProjectMember]:
+    """All membership rows for a project, identity attached."""
     rows = await session.scalars(
         select(ProjectMember)
         .where(ProjectMember.project_id == project_id)
@@ -141,6 +144,7 @@ async def list_members(
 async def remove_member(
     session: AsyncSession, *, project_id: uuid.UUID, member_id: uuid.UUID,
 ) -> None:
+    """Delete one membership row by member id."""
     member = await session.scalar(
         select(ProjectMember).where(
             ProjectMember.project_id == project_id,

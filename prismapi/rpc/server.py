@@ -15,8 +15,8 @@ import logging
 import sys
 from typing import Any
 
-from prismapi.db.base import Base, get_engine
 from prismapi.db import models  # noqa: F401 — register tables with Base.metadata
+from prismapi.db.base import Base, get_engine
 from prismapi.rpc.dispatcher import Dispatcher
 from prismapi.rpc.errors import INVALID_REQUEST, PARSE_ERROR, RpcError
 
@@ -76,7 +76,7 @@ async def _serve() -> None:
             _write_frame(_success(rid, result))
         except RpcError as exc:
             _write_frame(_error(rid, exc.code, exc.message, exc.data))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.exception("Unhandled error in dispatch")
             _write_frame(_error(rid, INVALID_REQUEST, str(exc)))
 

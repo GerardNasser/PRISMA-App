@@ -23,8 +23,8 @@ import pytest  # noqa: E402
 
 from prismapi.config import get_settings  # noqa: E402
 from prismapi.db import base as db_base  # noqa: E402
-from prismapi.db.base import Base, get_engine, get_sessionmaker  # noqa: E402
 from prismapi.db import models  # noqa: E402, F401
+from prismapi.db.base import Base, get_engine, get_sessionmaker  # noqa: E402
 from prismapi.rpc import Dispatcher  # noqa: E402
 from prismapi.services.identity import upsert_local_identity  # noqa: E402
 

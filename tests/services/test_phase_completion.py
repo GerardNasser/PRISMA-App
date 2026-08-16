@@ -240,7 +240,7 @@ async def test_soft_deleted_decisions_do_not_count(dispatcher, seeded):
         from sqlalchemy import select
 
         decision = (await session.scalars(select(ScreeningDecision))).first()
-        decision.deleted_at = datetime.datetime.now(datetime.timezone.utc)
+        decision.deleted_at = datetime.datetime.now(datetime.UTC)
         await session.commit()
 
     phases = await _phases(dispatcher, project_id)

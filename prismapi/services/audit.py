@@ -19,6 +19,7 @@ async def record_audit(
     entity_id: str | None = None,
     payload: dict | None = None,
 ) -> AuditLog:
+    """Append one audit-log row; flushed, not committed."""
     row = AuditLog(
         project_id=project_id,
         actor_identity_id=actor_identity_id,

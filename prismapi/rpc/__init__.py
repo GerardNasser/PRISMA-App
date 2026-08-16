@@ -17,4 +17,4 @@ walk-through of adding a new method.
 from prismapi.rpc.dispatcher import Dispatcher, rpc
 from prismapi.rpc.errors import RpcError
 
-__all__ = ["Dispatcher", "rpc", "RpcError"]
+__all__ = ["Dispatcher", "RpcError", "rpc"]

@@ -39,7 +39,7 @@ class Search(Base, TimestampMixin, SoftDeleteMixin):
     executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     hit_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    records: Mapped[list["Record"]] = relationship(
+    records: Mapped[list[Record]] = relationship(
         back_populates="search", cascade="all, delete-orphan", lazy="noload"
     )
 

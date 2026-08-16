@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from pathlib import Path
 
 from prismapi.adapters.filters import list_filters
 from prismapi.adapters.search import list_adapters
@@ -18,6 +17,8 @@ from prismapi.rpc.errors import NOT_FOUND, VALIDATION, RpcError
 from prismapi.services.search import execute_search, pairwise_keyword_matrix
 from prismapi.services.search_scripts import (
     generate_script as _generate_script,
+)
+from prismapi.services.search_scripts import (
     import_results as _import_results,
 )
 

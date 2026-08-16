@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
-import customtkinter as ctk
 from tkinter import simpledialog
 
+import customtkinter as ctk
+
 from gui import theme as T
-from gui.widgets import Badge, Card, DangerButton, Field, GhostButton, Helper, PrimaryButton, SecondaryButton
+from gui.widgets import (
+    Badge,
+    Card,
+    DangerButton,
+    Field,
+    GhostButton,
+    Helper,
+    PrimaryButton,
+    SecondaryButton,
+)
 
 
 class SettingsFrame(ctk.CTkFrame):
@@ -88,14 +98,14 @@ class SettingsFrame(ctk.CTkFrame):
             )
             self.app.set_identity(idt)
             self.app.toast("Identity saved", variant="ok")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't save", str(e), variant="danger")
 
     def _render_trash(self) -> None:
         Helper(self.body, "Soft-deleted items, restorable for 30 days.").pack(anchor="w", pady=(0, 12))
         try:
             trash = self.app.rpc.call("trash.list", {})
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             Helper(self.body, f"Couldn't load trash: {e}").pack(anchor="w")
             return
         total = sum(len(rows) for rows in trash.values())
@@ -124,7 +134,7 @@ class SettingsFrame(ctk.CTkFrame):
             self.app.rpc.call("trash.restore", {"entity_type": kind, "entity_id": eid})
             self.app.toast("Restored", variant="ok")
             self._set_tab("trash")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't restore", str(e), variant="danger")
 
     def _empty_trash(self) -> None:
@@ -139,14 +149,14 @@ class SettingsFrame(ctk.CTkFrame):
             self.app.rpc.call("trash.empty", {"confirm": "DELETE"})
             self.app.toast("Trash emptied", variant="ok")
             self._set_tab("trash")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't empty trash", str(e), variant="danger")
 
     def _render_snapshots(self) -> None:
         Helper(self.body, "Point-in-time copies of a project — auto on open, pre-import, pre-migration, plus manual.").pack(anchor="w", pady=(0, 12))
         try:
             projects = self.app.rpc.call("projects.list", {"include_trash": False})["projects"]
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             Helper(self.body, f"Couldn't load projects: {e}").pack(anchor="w")
             return
         if not projects:

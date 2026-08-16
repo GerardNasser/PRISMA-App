@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from prismapi.db.base import Base, get_engine, get_sessionmaker
-from prismapi.db.models import Identity, Project, ProjectMember
+from prismapi.db.models import Identity, Project
 from prismapi.rpc.errors import RpcError
 from prismapi.services.members import (
     enroll_member,
@@ -11,7 +11,6 @@ from prismapi.services.members import (
     remove_member,
     upsert_foreign_identity,
 )
-
 
 pytestmark = pytest.mark.asyncio
 

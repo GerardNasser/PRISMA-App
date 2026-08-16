@@ -9,7 +9,6 @@ import pytest
 from prismapi.db.base import Base, get_engine, get_sessionmaker
 from prismapi.db.models import Project
 
-
 pytestmark = pytest.mark.asyncio
 
 

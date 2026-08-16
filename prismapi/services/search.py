@@ -105,7 +105,7 @@ async def execute_search(
                 await session.flush()
         search.status = "completed"
         search.hit_count = hit_count
-    except Exception as exc:  # noqa: BLE001 - the attempt itself must be recorded
+    except Exception as exc:
         # Discard partial hits, then persist the failed attempt in its own
         # transaction — PRISMA-S requires failed searches to leave a trace,
         # and re-raising alone would have the dispatcher roll everything back.

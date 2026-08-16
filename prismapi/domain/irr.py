@@ -43,7 +43,7 @@ def cohens_kappa(a: list, b: list) -> float:
     """Two-rater nominal κ. Missing values must be filtered before calling."""
     if len(a) != len(b):
         raise ValueError("Cohen's κ requires equal-length rater vectors")
-    paired = [(x, y) for x, y in zip(a, b) if x is not None and y is not None]
+    paired = [(x, y) for x, y in zip(a, b, strict=True) if x is not None and y is not None]
     if not paired:
         return 0.0
     categories = sorted({c for pair in paired for c in pair})

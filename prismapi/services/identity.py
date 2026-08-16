@@ -18,6 +18,7 @@ from prismapi.rpc.errors import IDENTITY_NEEDED, VALIDATION, RpcError
 
 
 async def get_local_identity(session: AsyncSession) -> Identity | None:
+    """Return the install's local identity row, or None before onboarding."""
     return await session.scalar(
         select(Identity).where(Identity.is_local.is_(True)).order_by(Identity.created_at.asc())
     )
@@ -63,6 +64,7 @@ async def upsert_local_identity(
     email: str | None,
     institution: str | None,
 ) -> Identity:
+    """Create or update the local identity; requires ORCID or email."""
     last_name = last_name.strip()
     if not last_name:
         raise RpcError(VALIDATION, "Last name is required", {"field": "last_name"})

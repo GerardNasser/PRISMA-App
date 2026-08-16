@@ -62,7 +62,7 @@ class ExtractionPanel(ctk.CTkFrame):
             self.clusters = self.app.rpc.call(
                 "dedup.clusters.list", {"project_id": self.project["id"], "limit": 1000}
             )["clusters"]
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't load clusters", str(e), variant="danger")
             self.clusters = []
         try:
@@ -73,7 +73,7 @@ class ExtractionPanel(ctk.CTkFrame):
             self.mine_by_cluster = {
                 r["cluster_id"]: r for r in rows if r["reviewer_identity_id"] == me
             }
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't load saved extractions", str(e), variant="danger")
             self.mine_by_cluster = {}
         for c in self.cluster_list.winfo_children():
@@ -224,5 +224,5 @@ class ExtractionPanel(ctk.CTkFrame):
             if submit:
                 # A submitted extraction can open the risk-of-bias gate.
                 self.app.refresh_project_phases()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Save failed", str(e), variant="danger")

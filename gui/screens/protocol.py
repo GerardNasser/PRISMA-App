@@ -5,7 +5,7 @@ from __future__ import annotations
 import customtkinter as ctk
 
 from gui import theme as T
-from gui.widgets import Badge, Card, Field, GhostButton, Helper, PrimaryButton
+from gui.widgets import Badge, Card, Field, Helper, PrimaryButton
 
 
 class ProtocolPanel(ctk.CTkFrame):
@@ -82,5 +82,5 @@ class ProtocolPanel(ctk.CTkFrame):
             self.app.toast(f"Protocol saved (v{res['version']})", variant="ok")
             # A first protocol unlocks Search and Codebook; re-check the locks.
             self.app.refresh_project_phases()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             self.app.toast("Couldn't save protocol", str(e), variant="danger")

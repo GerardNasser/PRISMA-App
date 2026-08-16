@@ -13,8 +13,8 @@ import asyncio
 import threading
 from typing import Any
 
-from prismapi.db.base import Base, get_engine
 from prismapi.db import models  # noqa: F401 — register tables with metadata
+from prismapi.db.base import Base, get_engine
 from prismapi.rpc.dispatcher import Dispatcher
 from prismapi.rpc.errors import RpcError
 

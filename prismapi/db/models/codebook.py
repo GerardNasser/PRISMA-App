@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy import Uuid
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from prismapi.db.base import Base, SoftDeleteMixin, TimestampMixin
@@ -22,7 +21,7 @@ class Codebook(Base, TimestampMixin, SoftDeleteMixin):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    rules: Mapped[list["CodebookRule"]] = relationship(
+    rules: Mapped[list[CodebookRule]] = relationship(
         back_populates="codebook", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -42,4 +41,4 @@ class CodebookRule(Base, TimestampMixin):
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     examples: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
 
-    codebook: Mapped["Codebook"] = relationship(back_populates="rules", lazy="selectin")
+    codebook: Mapped[Codebook] = relationship(back_populates="rules", lazy="selectin")

@@ -23,10 +23,10 @@ from prismapi.statefile.schema import (
 )
 
 __all__ = [
+    "SCHEMA_VERSION",
     "Conflict",
     "DiffPreview",
     "Manifest",
-    "SCHEMA_VERSION",
     "UnsupportedSchemaError",
     "apply_merge",
     "compute_diff",

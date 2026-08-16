@@ -64,7 +64,7 @@ async def _seed(dispatcher):
 async def test_empty_trash_with_canonical_record_in_trashed_search(
     dispatcher, local_identity
 ):
-    pid, s1, s2 = await _seed(dispatcher)
+    pid, s1, _s2 = await _seed(dispatcher)
 
     # Search A's record is the canonical of the shared-DOI cluster (imported
     # first). Trash search A and empty: the cluster must be re-pointed to

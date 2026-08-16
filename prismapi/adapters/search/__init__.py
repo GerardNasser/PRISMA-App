@@ -1,5 +1,12 @@
 """Search adapter registry."""
 
+# Import for registration side-effects.
+from prismapi.adapters.search import (  # noqa: F401
+    crossref,
+    openalex,
+    pubmed,
+    ris_import,
+)
 from prismapi.adapters.search.base import (
     SearchAdapter,
     SearchAdapterError,
@@ -7,14 +14,6 @@ from prismapi.adapters.search.base import (
     list_adapters,
     register_adapter,
     resolve_adapter,
-)
-
-# Import for registration side-effects.
-from prismapi.adapters.search import (  # noqa: F401
-    crossref,
-    openalex,
-    pubmed,
-    ris_import,
 )
 
 __all__ = [

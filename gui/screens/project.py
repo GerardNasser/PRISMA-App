@@ -5,17 +5,15 @@ from __future__ import annotations
 import customtkinter as ctk
 
 from gui import theme as T
-from gui.widgets import Badge, Card, GhostButton, Helper
-
-from gui.screens.screening import ScreeningPanel
-from gui.screens.extraction import ExtractionPanel
-from gui.screens.share import SharePanel
-from gui.screens.search import SearchPanel
-from gui.screens.dedup import DedupPanel
 from gui.screens.codebook import CodebookPanel
+from gui.screens.dedup import DedupPanel
+from gui.screens.extraction import ExtractionPanel
 from gui.screens.protocol import ProtocolPanel
 from gui.screens.rob import RoBPanel
-
+from gui.screens.screening import ScreeningPanel
+from gui.screens.search import SearchPanel
+from gui.screens.share import SharePanel
+from gui.widgets import Badge, Card, GhostButton, Helper
 
 PHASES = [
     ("overview", "Overview"),
