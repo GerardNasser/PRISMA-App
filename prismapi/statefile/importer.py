@@ -54,6 +54,16 @@ def validate_manifest(path: Path) -> Manifest:
             raise UnsupportedSchemaError(
                 "Bundle integrity check failed for: " + ", ".join(bad)
             )
+        # Every entry must be listed (and therefore checksummed) in the
+        # manifest — an unlisted file would otherwise be read and imported
+        # without any integrity check.
+        listed = {fc.relative_path for fc in manifest.files} | {"manifest.json"}
+        unlisted = [n for n in zf.namelist() if n not in listed]
+        if unlisted:
+            raise UnsupportedSchemaError(
+                "Bundle contains files not listed in the manifest: "
+                + ", ".join(sorted(unlisted))
+            )
         return manifest
 
 
@@ -75,14 +85,14 @@ def _read_json(zf: zipfile.ZipFile, name: str) -> dict[str, Any]:
     return json.loads(zf.read(name))
 
 
-async def preview_import(
-    session: AsyncSession, *, path: Path
-) -> tuple[Manifest, DiffPreview]:
-    """Open the file, validate the manifest, compute a DiffPreview vs the local DB."""
-    manifest = validate_manifest(path)
-    incoming: dict[str, Any]
+def read_bundle(path: Path) -> dict[str, Any]:
+    """Parse every table of a validated bundle into JSON rows.
+
+    The single reader shared by preview and merge — a second hand-rolled
+    copy of this list is how tables silently go missing on one path.
+    """
     with zipfile.ZipFile(path, "r") as zf:
-        incoming = {
+        return {
             "project": _read_json(zf, "project.json"),
             "protocols": _read_jsonl(zf, "protocols.jsonl"),
             "pico_elements": _read_jsonl(zf, "pico_elements.jsonl"),
@@ -98,7 +108,35 @@ async def preview_import(
             "rob": _read_jsonl(zf, "rob.jsonl"),
             "audit": _read_jsonl(zf, "audit.jsonl"),
             "judgments": _read_jsonl(zf, "judgments.jsonl"),
+            "members": _read_jsonl(zf, "members.jsonl"),
             "identities": _read_jsonl(zf, "identities.jsonl"),
         }
+
+
+async def preview_import(
+    session: AsyncSession, *, path: Path
+) -> tuple[Manifest, DiffPreview]:
+    """Open the file, validate the manifest, compute a DiffPreview vs the local DB."""
+    manifest = validate_manifest(path)
+    incoming = read_bundle(path)
+    _verify_counts(manifest, incoming)
     diff = await compute_diff(session, incoming=incoming, manifest=manifest)
     return manifest, diff
+
+
+def _verify_counts(manifest: Manifest, incoming: dict[str, Any]) -> None:
+    """The manifest's summary counts must match the rows actually present."""
+    mismatches: list[str] = []
+    for key in (
+        "protocols", "codebooks", "records", "clusters", "searches",
+        "screenings", "extractions", "rob", "audit", "judgments",
+        "identities", "members",
+    ):
+        declared = getattr(manifest.counts, key)
+        actual = len(incoming.get(key, []))
+        if declared != actual:
+            mismatches.append(f"{key}: manifest says {declared}, bundle has {actual}")
+    if mismatches:
+        raise UnsupportedSchemaError(
+            "Manifest counts do not match bundle contents — " + "; ".join(mismatches)
+        )

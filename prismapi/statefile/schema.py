@@ -48,6 +48,7 @@ class ManifestCounts(BaseModel):
     audit: int = 0
     judgments: int = 0
     identities: int = 0
+    members: int = 0
     assets: int = 0
 
 

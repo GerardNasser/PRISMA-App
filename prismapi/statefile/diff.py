@@ -5,11 +5,9 @@ caller merged the incoming bundle into the local DB. It enumerates:
 
 - `added` rows (not present locally → will be inserted)
 - `unchanged` rows (already match — no-op)
-- `superseded_local` rows (incoming has a higher protocol/codebook version that
-  fast-forwards local)
 - `conflicts` (require a user decision before merge can proceed)
 
-Conflict classes (see `docs/learning/the-statefile-format.md`):
+Conflict classes:
 
 | key                 | when                                                              |
 |---------------------|-------------------------------------------------------------------|
@@ -41,6 +39,7 @@ from prismapi.db.models import (
     Identity,
     JudgmentCall,
     Project,
+    ProjectMember,
     Record,
     RecordCluster,
     RecordClusterMember,
@@ -115,6 +114,33 @@ def _normalise_keys(d: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in d.items() if k not in {"created_at", "updated_at"}}
 
 
+_BODY_EXCLUDE = {"id", "project_id", "version", "created_at", "updated_at", "deleted_at"}
+
+
+def _jsonish(v: Any) -> Any:
+    """Normalise a local ORM value for comparison with a JSON-decoded one."""
+    if isinstance(v, uuid.UUID):
+        return str(v)
+    if hasattr(v, "isoformat"):
+        return v.isoformat()
+    return v
+
+
+def _bodies_differ(incoming_row: dict[str, Any], local_row: dict[str, Any]) -> bool:
+    """Compare every content field the two rows share, not a hand-picked pair.
+
+    A parallel version bump that changed only, say, eligibility criteria must
+    still surface as a conflict — silently dropping the incoming body loses
+    data with no trace.
+    """
+    for k in incoming_row.keys() & local_row.keys():
+        if k in _BODY_EXCLUDE:
+            continue
+        if _jsonish(incoming_row[k]) != _jsonish(local_row[k]):
+            return True
+    return False
+
+
 def _diff_simple_by_id(
     incoming_rows: list[dict[str, Any]],
     local_rows: dict[uuid.UUID, dict[str, Any]],
@@ -185,6 +211,7 @@ async def compute_diff(
             "rob": len(incoming["rob"]),
             "audit": len(incoming["audit"]),
             "judgments": len(incoming["judgments"]),
+            "members": len(incoming.get("members", [])),
             "identities": len(incoming["identities"]),
         }
         preview._adds = {
@@ -203,6 +230,7 @@ async def compute_diff(
             "rob": incoming["rob"],
             "audit": incoming["audit"],
             "judgments": incoming["judgments"],
+            "members": incoming.get("members", []),
             "identities": incoming["identities"],
         }
         return preview
@@ -255,19 +283,17 @@ async def compute_diff(
     }
     proto_adds: list[dict[str, Any]] = []
     proto_unchanged = 0
-    proto_supersedes: list[dict[str, Any]] = []
     for row in incoming["protocols"]:
         v = row["version"]
         rid = _to_uuid(row["id"])
         if rid in local_protocols:
             proto_unchanged += 1
             continue
-        # Same version, different id → parallel bump conflict.
+        # Same version, different id → parallel bump. Full-body comparison:
+        # any divergent content field makes it a conflict.
         if v in by_version_local:
             local_row = by_version_local[v]
-            if _normalise_keys(row).get("title") != local_row.get("title") or _normalise_keys(
-                row
-            ).get("pico") != local_row.get("pico"):
+            if _bodies_differ(row, local_row):
                 preview.conflicts.append(
                     Conflict(
                         kind="protocol_parallel",
@@ -277,12 +303,13 @@ async def compute_diff(
                         key={"project_id": str(project_id), "version": str(v)},
                     )
                 )
+            else:
+                proto_unchanged += 1
             continue
         # Higher version, no local — fast-forward add.
         proto_adds.append(row)
     preview.counts_added["protocols"] = len(proto_adds)
     preview.counts_unchanged["protocols"] = proto_unchanged
-    preview.counts_superseded["protocols"] = len(proto_supersedes)
     preview._adds["protocols"] = proto_adds
 
     # --- Codebooks (versioned, same rule as protocols) ---
@@ -508,5 +535,19 @@ async def compute_diff(
     preview.counts_added["judgments"] = len(j_adds)
     preview.counts_unchanged["judgments"] = len(j_unchanged)
     preview._adds["judgments"] = j_adds
+
+    # --- Members (union by project + identity; local roles win) ---
+    local_members = await _local_index_by_id(session, ProjectMember, project_id)
+    local_member_identities = {m["identity_id"] for m in local_members.values()}
+    m_adds: list[dict[str, Any]] = []
+    m_unchanged = 0
+    for row in incoming.get("members", []):
+        if _to_uuid(row["identity_id"]) in local_member_identities:
+            m_unchanged += 1
+        else:
+            m_adds.append(row)
+    preview.counts_added["members"] = len(m_adds)
+    preview.counts_unchanged["members"] = m_unchanged
+    preview._adds["members"] = m_adds
 
     return preview

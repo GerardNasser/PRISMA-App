@@ -31,6 +31,7 @@ from prismapi.db.models import (
     Identity,
     JudgmentCall,
     Project,
+    ProjectMember,
     Record,
     RecordCluster,
     RecordClusterMember,
@@ -139,10 +140,15 @@ async def _gather_rows(session: AsyncSession, project: Project) -> dict[str, lis
     judgments = (await session.execute(
         select(JudgmentCall).where(JudgmentCall.project_id == project.id)
     )).scalars().all()
+    members = (await session.execute(
+        select(ProjectMember).where(ProjectMember.project_id == project.id)
+    )).scalars().all()
 
     # Collect identities referenced anywhere (canonical export = author + every
     # reviewer who acted on the project).
     referenced_ids: set[uuid.UUID] = {project.owner_identity_id}
+    for m in members:
+        referenced_ids.add(m.identity_id)
     for s in screenings:
         referenced_ids.add(s.reviewer_identity_id)
     for e in extractions:
@@ -174,6 +180,7 @@ async def _gather_rows(session: AsyncSession, project: Project) -> dict[str, lis
         "rob": by_id_asc(robs),
         "audit": by_id_asc(audit),
         "judgments": by_id_asc(judgments),
+        "members": by_id_asc(members),
         "identities": [
             # Strip is_local — that's a property of the source install, not the data.
             {**_row_to_dict(i), "is_local": False}
@@ -215,6 +222,7 @@ async def export_project(
         ("rob.jsonl", "rob"),
         ("audit.jsonl", "audit"),
         ("judgments.jsonl", "judgments"),
+        ("members.jsonl", "members"),
         ("identities.jsonl", "identities"),
     ]:
         payload = "".join(_json_line(d) for d in rows[key]).encode("utf-8")
@@ -232,6 +240,7 @@ async def export_project(
         audit=len(rows["audit"]),
         judgments=len(rows["judgments"]),
         identities=len(rows["identities"]),
+        members=len(rows["members"]),
         assets=0,  # Asset support to be wired with PDF attachments later.
     )
 

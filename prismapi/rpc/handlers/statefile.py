@@ -99,40 +99,11 @@ async def merge(
                 actor_identity_id=identity_id,
             )
 
-    # Re-read the bundle for the merger.
-    import json
-    import zipfile
+    # Re-read the bundle for the merger — through the same reader the
+    # preview used, so both paths always see the same tables.
+    from prismapi.statefile.importer import read_bundle
 
-    with zipfile.ZipFile(path, "r") as zf:
-
-        def _jsonl(name: str) -> list:
-            try:
-                return [
-                    json.loads(line)
-                    for line in zf.read(name).decode("utf-8").splitlines()
-                    if line.strip()
-                ]
-            except KeyError:
-                return []
-
-        incoming = {
-            "project": json.loads(zf.read("project.json")),
-            "protocols": _jsonl("protocols.jsonl"),
-            "pico_elements": _jsonl("pico_elements.jsonl"),
-            "codebooks": _jsonl("codebooks.jsonl"),
-            "codebook_rules": _jsonl("codebook_rules.jsonl"),
-            "searches": _jsonl("searches.jsonl"),
-            "records": _jsonl("records.jsonl"),
-            "clusters": _jsonl("clusters.jsonl"),
-            "cluster_members": _jsonl("cluster_members.jsonl"),
-            "screenings": _jsonl("screenings.jsonl"),
-            "conflict_resolutions": _jsonl("conflict_resolutions.jsonl"),
-            "extractions": _jsonl("extractions.jsonl"),
-            "rob": _jsonl("rob.jsonl"),
-            "audit": _jsonl("audit.jsonl"),
-            "judgments": _jsonl("judgments.jsonl"),
-            "identities": _jsonl("identities.jsonl"),
-        }
+    incoming = read_bundle(path)
 
     try:
         summary = await apply_merge(

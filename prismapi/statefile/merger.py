@@ -178,30 +178,40 @@ async def apply_merge(
         if rows:
             await session.flush()
 
-    # Parallel-bump conflicts → write a new version row that supersedes both.
+    # Parallel-bump conflicts → the incoming body lands as a NEW version on
+    # top of the highest local version (not local_conflict_version + 1, which
+    # collides when local has already advanced past the conflicted version).
+    from sqlalchemy import func
+
+    async def _next_version(model: type) -> int:
+        current = await session.scalar(
+            select(func.max(model.version)).where(
+                model.project_id == _to_uuid(manifest.project_id)
+            )
+        )
+        return (current or 0) + 1
+
     for c in preview.conflicts:
         if c.kind == "protocol_parallel":
             choice = resolutions[_conflict_key(c)]
-            local_v = c.local["version"]
-            if choice == "keep_incoming":
-                # Find the incoming row matching by id and insert it.
+            if choice in ("keep_incoming", "keep_both"):
                 incoming_id = c.incoming["id"]
                 row = next(p for p in incoming["protocols"] if p["id"] == incoming_id)
-                session.add(_hydrate(Protocol, {**row, "version": local_v + 1}))
-            elif choice == "keep_both":
-                incoming_id = c.incoming["id"]
-                row = next(p for p in incoming["protocols"] if p["id"] == incoming_id)
-                session.add(_hydrate(Protocol, {**row, "version": local_v + 1}))
-                # local is retained as v_local; we add the incoming as v_local+1.
+                session.add(
+                    _hydrate(Protocol, {**row, "version": await _next_version(Protocol)})
+                )
+                await session.flush()
             summary["conflicts_resolved"].setdefault("protocol_parallel", 0)
             summary["conflicts_resolved"]["protocol_parallel"] += 1
         elif c.kind == "codebook_parallel":
             choice = resolutions[_conflict_key(c)]
-            local_v = c.local["version"]
             if choice in ("keep_incoming", "keep_both"):
                 incoming_id = c.incoming["id"]
                 row = next(p for p in incoming["codebooks"] if p["id"] == incoming_id)
-                session.add(_hydrate(Codebook, {**row, "version": local_v + 1}))
+                session.add(
+                    _hydrate(Codebook, {**row, "version": await _next_version(Codebook)})
+                )
+                await session.flush()
             summary["conflicts_resolved"].setdefault("codebook_parallel", 0)
             summary["conflicts_resolved"]["codebook_parallel"] += 1
         elif c.kind == "screening_drift":
@@ -218,12 +228,98 @@ async def apply_merge(
                     existing.decision = c.incoming["decision"]
             summary["conflicts_resolved"].setdefault("screening_drift", 0)
             summary["conflicts_resolved"]["screening_drift"] += 1
-        elif c.kind in ("extraction_drift", "rob_drift", "arbitration_drift"):
-            # `keep_incoming` overwrites; `keep_local` no-ops.
+        elif c.kind == "extraction_drift":
+            choice = resolutions[_conflict_key(c)]
+            if choice == "keep_incoming":
+                existing = await session.scalar(
+                    select(Extraction).where(
+                        Extraction.cluster_id == _to_uuid(c.key["cluster_id"]),
+                        Extraction.reviewer_identity_id
+                        == _to_uuid(c.key["reviewer_identity_id"]),
+                    )
+                )
+                row = next(
+                    (
+                        e
+                        for e in incoming["extractions"]
+                        if str(e["cluster_id"]) == c.key["cluster_id"]
+                        and str(e["reviewer_identity_id"])
+                        == c.key["reviewer_identity_id"]
+                    ),
+                    None,
+                )
+                if existing is not None and row is not None:
+                    existing.payload = row.get("payload") or {}
+                    existing.status = row.get("status") or existing.status
+                    existing.notes = row.get("notes")
             summary["conflicts_resolved"].setdefault(c.kind, 0)
             summary["conflicts_resolved"][c.kind] += 1
-            # Detailed resolution writes deferred to future PR — UI for these
-            # drift classes is built but applies a no-op for "keep_local".
+        elif c.kind == "rob_drift":
+            choice = resolutions[_conflict_key(c)]
+            if choice == "keep_incoming":
+                existing = await session.scalar(
+                    select(RoBAssessment).where(
+                        RoBAssessment.cluster_id == _to_uuid(c.key["cluster_id"]),
+                        RoBAssessment.reviewer_identity_id
+                        == _to_uuid(c.key["reviewer_identity_id"]),
+                    )
+                )
+                row = next(
+                    (
+                        r
+                        for r in incoming["rob"]
+                        if str(r["cluster_id"]) == c.key["cluster_id"]
+                        and str(r["reviewer_identity_id"])
+                        == c.key["reviewer_identity_id"]
+                    ),
+                    None,
+                )
+                if existing is not None and row is not None:
+                    existing.judgements = row.get("judgements") or {}
+                    existing.overall = row.get("overall")
+                    existing.notes = row.get("notes")
+            summary["conflicts_resolved"].setdefault(c.kind, 0)
+            summary["conflicts_resolved"][c.kind] += 1
+        elif c.kind == "arbitration_drift":
+            choice = resolutions[_conflict_key(c)]
+            if choice == "keep_incoming":
+                existing = await session.scalar(
+                    select(ConflictResolution).where(
+                        ConflictResolution.cluster_id == _to_uuid(c.key["cluster_id"]),
+                        ConflictResolution.stage == c.key["stage"],
+                    )
+                )
+                row = next(
+                    (
+                        a
+                        for a in incoming["conflict_resolutions"]
+                        if str(a["cluster_id"]) == c.key["cluster_id"]
+                        and a["stage"] == c.key["stage"]
+                    ),
+                    None,
+                )
+                if existing is not None and row is not None:
+                    existing.arbiter_identity_id = _to_uuid(row["arbiter_identity_id"])
+                    existing.final_decision = row["final_decision"]
+                    existing.rationale = row.get("rationale") or existing.rationale
+            summary["conflicts_resolved"].setdefault(c.kind, 0)
+            summary["conflicts_resolved"][c.kind] += 1
+
+    # Team roster travels with the project: insert exported members whose
+    # identity isn't already enrolled locally.
+    member_rows = preview._adds.get("members", [])
+    for row in member_rows:
+        exists = await session.scalar(
+            select(ProjectMember).where(
+                ProjectMember.project_id == _to_uuid(row["project_id"]),
+                ProjectMember.identity_id == _to_uuid(row["identity_id"]),
+            )
+        )
+        if exists is None:
+            session.add(_hydrate(ProjectMember, row))
+    summary["added"]["members"] = len(member_rows)
+    if member_rows:
+        await session.flush()
 
     # Ensure the local actor is a member of the imported project (otherwise
     # they can't access what they just merged).
