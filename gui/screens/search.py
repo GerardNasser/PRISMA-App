@@ -239,19 +239,22 @@ class SearchPanel(ctk.CTkFrame):
         )
         if not path:
             return
-        try:
-            res = self.app.rpc.call(
-                "searches.import_results",
-                {"project_id": self.project["id"], "input_path": path},
-            )
+        def _done(res: dict) -> None:
             self.app.toast(
                 f"Imported {res['inserted']} records",
                 f"from {res['database']}; skipped {res['skipped']}",
                 variant="ok",
             )
             self.refresh()
-        except Exception as e:  # noqa: BLE001
-            self.app.toast("Import failed", str(e), variant="danger")
+            self.app.refresh_project_phases()
+
+        self.app.rpc_bg(
+            "searches.import_results",
+            {"project_id": self.project["id"], "input_path": path},
+            on_done=_done,
+            on_error=lambda e: self.app.toast("Import failed", str(e), variant="danger"),
+            widget=self,
+        )
 
     def _import_ris(self) -> None:
         path = filedialog.askopenfilename(
@@ -266,17 +269,20 @@ class SearchPanel(ctk.CTkFrame):
         except Exception as e:  # noqa: BLE001
             self.app.toast("Couldn't read file", str(e), variant="danger")
             return
-        try:
-            res = self.app.rpc.call(
-                "searches.run",
-                {
-                    "project_id": self.project["id"],
-                    "database": "ris_import",
-                    "query": f"RIS upload: {Path(path).name}",
-                    "payload": payload,
-                },
-            )
+        def _done(res: dict) -> None:
             self.app.toast(f"Imported {res['hit_count']} records", variant="ok")
             self.refresh()
-        except Exception as e:  # noqa: BLE001
-            self.app.toast("Import failed", str(e), variant="danger")
+            self.app.refresh_project_phases()
+
+        self.app.rpc_bg(
+            "searches.run",
+            {
+                "project_id": self.project["id"],
+                "database": "ris_import",
+                "query": f"RIS upload: {Path(path).name}",
+                "payload": payload,
+            },
+            on_done=_done,
+            on_error=lambda e: self.app.toast("Import failed", str(e), variant="danger"),
+            widget=self,
+        )

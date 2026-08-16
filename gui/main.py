@@ -51,6 +51,7 @@ class PrismAPIApp(ctk.CTk):
 
         self.rpc = RpcClient()
         self.identity = self.rpc.call("identity.get")
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # Persistent container — never destroyed; we destroy and rebuild its
         # single child on each navigation.
@@ -184,6 +185,45 @@ class PrismAPIApp(ctk.CTk):
     def set_identity(self, identity: dict) -> None:
         self.identity = identity
 
+    def rpc_bg(
+        self,
+        method: str,
+        params: dict | None,
+        on_done,
+        on_error=None,
+        widget=None,
+    ) -> None:
+        """Run an RPC on the background loop and deliver the result on the
+        Tk main thread. Slow handlers (dedup, imports, statefile) must come
+        through here — a blocking `rpc.call` freezes the whole window.
+
+        `widget`: when given, callbacks are dropped if it was destroyed
+        while the call was in flight (the user navigated away).
+        """
+        future = self.rpc.call_async(method, params or {})
+
+        def _poll() -> None:
+            if not future.done():
+                self.after(60, _poll)
+                return
+            if widget is not None:
+                try:
+                    if not widget.winfo_exists():
+                        return
+                except Exception:  # noqa: BLE001
+                    return
+            try:
+                result = future.result()
+            except Exception as exc:  # noqa: BLE001
+                if on_error is not None:
+                    on_error(exc)
+                else:
+                    self.toast("Operation failed", str(exc), variant="danger")
+                return
+            on_done(result)
+
+        _poll()
+
     def refresh_project_phases(self) -> None:
         """Re-evaluate sidebar phase locks after a mutation, if a project is open.
 
@@ -198,6 +238,14 @@ class PrismAPIApp(ctk.CTk):
                 frame.after_idle(frame.refresh)
         except Exception:  # noqa: BLE001 - stale frame reference after nav
             self.active_project_frame = None
+
+    def _on_close(self) -> None:
+        """Stop the background asyncio loop before tearing down Tk."""
+        try:
+            self.rpc.shutdown()
+        except Exception:  # noqa: BLE001
+            pass
+        self.destroy()
 
     # ---- toasts ----
     def toast(self, title: str, description: str = "", variant: str = "info") -> None:

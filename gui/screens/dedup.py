@@ -20,7 +20,8 @@ class DedupPanel(ctk.CTkFrame):
         head = ctk.CTkFrame(self, fg_color="transparent")
         head.pack(fill="x", pady=(0, 8))
         ctk.CTkLabel(head, text="De-duplicate", font=("SF Pro Display", 16, "bold"), text_color=T.INK).pack(side="left")
-        PrimaryButton(head, "Run dedup", command=self._run).pack(side="right")
+        self.run_btn = PrimaryButton(head, "Run dedup", command=self._run)
+        self.run_btn.pack(side="right")
         Helper(
             self,
             "DOI → PMID → normalised title+year → fuzzy title (rapidfuzz token-set + author Jaccard + year tolerance).",
@@ -35,17 +36,23 @@ class DedupPanel(ctk.CTkFrame):
         self.list_wrap.pack(fill="both", expand=True)
 
     def _run(self, force: bool = False) -> None:
-        from tkinter import messagebox
+        # Dedup is O(n²) fuzzy matching — run it off the Tk thread.
+        self.run_btn.configure(state="disabled", text="Running…")
 
-        try:
-            self.app.rpc.call(
-                "dedup.run", {"project_id": self.project["id"], "force": force}
-            )
+        def _restore_btn() -> None:
+            self.run_btn.configure(state="normal", text="Run dedup")
+
+        def _done(_result) -> None:
+            _restore_btn()
             self.app.toast("Dedup complete", variant="ok")
             self.refresh()
             # New clusters unlock title/abstract screening.
             self.app.refresh_project_phases()
-        except Exception as e:  # noqa: BLE001
+
+        def _error(e: Exception) -> None:
+            from tkinter import messagebox
+
+            _restore_btn()
             counts = getattr(e, "data", None) or {}
             would_delete = counts.get("would_delete") if isinstance(counts, dict) else None
             if would_delete and not force:
@@ -60,6 +67,14 @@ class DedupPanel(ctk.CTkFrame):
                     self._run(force=True)
                 return
             self.app.toast("Dedup failed", str(e), variant="danger")
+
+        self.app.rpc_bg(
+            "dedup.run",
+            {"project_id": self.project["id"], "force": force},
+            on_done=_done,
+            on_error=_error,
+            widget=self,
+        )
 
     _LIMIT = 1000
 

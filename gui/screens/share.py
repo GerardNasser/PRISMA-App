@@ -57,11 +57,13 @@ class SharePanel(ctk.CTkFrame):
         )
         if not path:
             return
-        try:
-            self.app.rpc.call("statefile.export", {"project_id": self.project["id"], "output_path": path})
-            self.app.toast("Exported", path, variant="ok")
-        except Exception as e:  # noqa: BLE001
-            self.app.toast("Export failed", str(e), variant="danger")
+        self.app.rpc_bg(
+            "statefile.export",
+            {"project_id": self.project["id"], "output_path": path},
+            on_done=lambda _r: self.app.toast("Exported", path, variant="ok"),
+            on_error=lambda e: self.app.toast("Export failed", str(e), variant="danger"),
+            widget=self,
+        )
 
     def _preview_import(self) -> None:
         path = filedialog.askopenfilename(
@@ -69,15 +71,20 @@ class SharePanel(ctk.CTkFrame):
         )
         if not path:
             return
-        try:
-            res = self.app.rpc.call("statefile.preview_import", {"input_path": path})
-        except Exception as e:  # noqa: BLE001
-            self.app.toast("Couldn't preview", str(e), variant="danger")
-            return
-        self.import_path = path
-        self.preview = res
-        self.resolutions = {}
-        self._render_preview()
+
+        def _done(res: dict) -> None:
+            self.import_path = path
+            self.preview = res
+            self.resolutions = {}
+            self._render_preview()
+
+        self.app.rpc_bg(
+            "statefile.preview_import",
+            {"input_path": path},
+            on_done=_done,
+            on_error=lambda e: self.app.toast("Couldn't preview", str(e), variant="danger"),
+            widget=self,
+        )
 
     def _render_preview(self) -> None:
         for c in self.preview_wrap.winfo_children():
@@ -184,16 +191,21 @@ class SharePanel(ctk.CTkFrame):
     def _merge(self) -> None:
         if not self.import_path:
             return
-        try:
-            self.app.rpc.call(
-                "statefile.merge",
-                {
-                    "input_path": self.import_path,
-                    "resolutions": self.resolutions,
-                    "take_pre_import_snapshot": True,
-                },
-            )
+
+        def _done(_result) -> None:
             self.app.toast("Merge applied", variant="ok")
             self._discard()
-        except Exception as e:  # noqa: BLE001
-            self.app.toast("Merge failed", str(e), variant="danger")
+            # Merged decisions can complete a stage and open the next phase.
+            self.app.refresh_project_phases()
+
+        self.app.rpc_bg(
+            "statefile.merge",
+            {
+                "input_path": self.import_path,
+                "resolutions": self.resolutions,
+                "take_pre_import_snapshot": True,
+            },
+            on_done=_done,
+            on_error=lambda e: self.app.toast("Merge failed", str(e), variant="danger"),
+            widget=self,
+        )
