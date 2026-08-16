@@ -36,8 +36,12 @@ def _reset_engine() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _isolated_db() -> AsyncIterator[None]:
-    # Fresh DB file per test.
+async def _isolated_db() -> AsyncIterator[None]:
+    """Fresh DB file per test, engine disposed inside the test's own loop.
+
+    Disposing at teardown matters: resetting the module-global engine without
+    closing it leaves aiosqlite worker threads racing a closed event loop.
+    """
     if _test_root.exists():
         for child in _test_root.iterdir():
             if child.is_file():
@@ -46,6 +50,8 @@ def _isolated_db() -> AsyncIterator[None]:
                 shutil.rmtree(child)
     _reset_engine()
     yield
+    if db_base._engine is not None:
+        await db_base._engine.dispose()
 
 
 @pytest.fixture
