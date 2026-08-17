@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prismapi.db.base import utcnow
@@ -181,8 +181,6 @@ async def apply_merge(
     # Parallel-bump conflicts → the incoming body lands as a NEW version on
     # top of the highest local version (not local_conflict_version + 1, which
     # collides when local has already advanced past the conflicted version).
-    from sqlalchemy import func
-
     async def _next_version(model: type) -> int:
         current = await session.scalar(
             select(func.max(model.version)).where(
@@ -200,7 +198,6 @@ async def apply_merge(
             incoming_id = c.incoming["id"]
             row = next(r for r in incoming[table] if r["id"] == incoming_id)
             session.add(_hydrate(model, {**row, "version": await _next_version(model)}))
-            await session.flush()
         if choice == "keep_incoming":
             local = await session.get(model, _to_uuid(c.local["id"]))
             if local is not None:
@@ -323,8 +320,6 @@ async def apply_merge(
             session.add(_hydrate(ProjectMember, row))
             members_inserted += 1
     summary["added"]["members"] = members_inserted
-    if members_inserted:
-        await session.flush()
 
     # Ensure the local actor can see the project they just merged. Enrolled
     # as read_only: a rater role would make them count toward the screening

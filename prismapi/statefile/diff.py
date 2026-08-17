@@ -50,17 +50,6 @@ from prismapi.db.models import (
 from prismapi.db.models.protocol import PicoElement, Protocol
 from prismapi.statefile.schema import Manifest
 
-CONFLICT_KEYS = {
-    "project_metadata",
-    "protocol_parallel",
-    "codebook_parallel",
-    "screening_drift",
-    "extraction_drift",
-    "rob_drift",
-    "arbitration_drift",
-    "identity_drift",
-}
-
 
 @dataclass
 class Conflict:
@@ -76,11 +65,9 @@ class DiffPreview:
     project_present_locally: bool
     counts_added: dict[str, int] = field(default_factory=dict)
     counts_unchanged: dict[str, int] = field(default_factory=dict)
-    counts_superseded: dict[str, int] = field(default_factory=dict)
     conflicts: list[Conflict] = field(default_factory=list)
     # The full incoming rows, partitioned by category — kept for the merger.
     _adds: dict[str, list[dict[str, Any]]] = field(default_factory=dict, repr=False)
-    _supersedes: dict[str, list[dict[str, Any]]] = field(default_factory=dict, repr=False)
 
     def has_blocking_conflicts(self) -> bool:
         return bool(self.conflicts)
@@ -90,7 +77,6 @@ class DiffPreview:
             "project_present_locally": self.project_present_locally,
             "counts_added": dict(self.counts_added),
             "counts_unchanged": dict(self.counts_unchanged),
-            "counts_superseded": dict(self.counts_superseded),
             "conflicts": [
                 {
                     "kind": c.kind,

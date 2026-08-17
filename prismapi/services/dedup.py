@@ -51,6 +51,68 @@ def _completeness(r: Record) -> int:
     return score
 
 
+def cluster_payload(cluster: RecordCluster, canonical: Record | None) -> dict:
+    """Wire shape for one cluster, shared by every listing RPC."""
+    members = (
+        cluster.merge_graph.get("members", [])
+        if isinstance(cluster.merge_graph, dict)
+        else []
+    )
+    canonical_out = None
+    if canonical is not None:
+        canonical_out = {
+            "id": str(canonical.id),
+            "title": canonical.title,
+            "abstract": canonical.abstract,
+            "authors": canonical.authors,
+            "journal": canonical.journal,
+            "year": canonical.year,
+            "doi": canonical.doi,
+            "pmid": canonical.pmid,
+            "url": canonical.url,
+            "publication_type": canonical.publication_type,
+        }
+    return {
+        "id": str(cluster.id),
+        "canonical_record_id": str(cluster.canonical_record_id),
+        "size": cluster.size,
+        "method": cluster.method,
+        "confidence": cluster.confidence,
+        "members": members,
+        "canonical": canonical_out,
+    }
+
+
+async def list_cluster_payloads(
+    session: AsyncSession,
+    project_id: uuid.UUID,
+    *,
+    only_ids: set[uuid.UUID] | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> list[dict]:
+    """One cluster-listing pipeline for dedup, screening, and extraction RPCs.
+
+    Ordering, pagination, and canonical hydration live here so the listings
+    can never drift apart.
+    """
+    q = select(RecordCluster).where(RecordCluster.project_id == project_id)
+    if only_ids is not None:
+        q = q.where(RecordCluster.id.in_(only_ids))
+    rows = await session.execute(
+        q.order_by(RecordCluster.size.desc(), RecordCluster.created_at.asc())
+        .offset(offset)
+        .limit(limit)
+    )
+    clusters = list(rows.scalars().all())
+    canonical_map: dict[uuid.UUID, Record] = {}
+    canonical_ids = [c.canonical_record_id for c in clusters]
+    if canonical_ids:
+        rec_rows = await session.execute(select(Record).where(Record.id.in_(canonical_ids)))
+        canonical_map = {r.id: r for r in rec_rows.scalars().all()}
+    return [cluster_payload(c, canonical_map.get(c.canonical_record_id)) for c in clusters]
+
+
 async def run_dedup(
     session: AsyncSession,
     *,

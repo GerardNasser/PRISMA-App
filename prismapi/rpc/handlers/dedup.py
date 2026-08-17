@@ -13,7 +13,6 @@ from prismapi.db.models import (
     Extraction,
     Project,
     ProjectMember,
-    Record,
     RecordCluster,
     RecordClusterMember,
     RoBAssessment,
@@ -22,7 +21,7 @@ from prismapi.db.models import (
 from prismapi.rpc.dispatcher import rpc
 from prismapi.rpc.errors import NOT_FOUND, VALIDATION, RpcError
 from prismapi.services.audit import record_audit
-from prismapi.services.dedup import run_dedup
+from prismapi.services.dedup import cluster_payload, list_cluster_payloads, run_dedup
 
 
 async def _assert_member(
@@ -65,61 +64,17 @@ class ClustersList(BaseModel):
     offset: int = 0
 
 
-def _cluster_out(c: RecordCluster) -> dict:
-    members = c.merge_graph.get("members", []) if isinstance(c.merge_graph, dict) else []
-    return {
-        "id": str(c.id),
-        "canonical_record_id": str(c.canonical_record_id),
-        "size": c.size,
-        "method": c.method,
-        "confidence": c.confidence,
-        "members": members,
-    }
-
-
-def _canonical_out(r: Record | None) -> dict | None:
-    if r is None:
-        return None
-    return {
-        "id": str(r.id),
-        "title": r.title,
-        "abstract": r.abstract,
-        "authors": r.authors,
-        "journal": r.journal,
-        "year": r.year,
-        "doi": r.doi,
-        "pmid": r.pmid,
-        "url": r.url,
-        "publication_type": r.publication_type,
-    }
-
-
 @rpc("dedup.clusters.list")
 async def clusters(
     params: ClustersList, session: AsyncSession, identity_id: uuid.UUID
 ) -> dict:
     await _assert_member(session, uuid.UUID(params.project_id), identity_id)
-    rows = await session.execute(
-        select(RecordCluster)
-        .where(RecordCluster.project_id == uuid.UUID(params.project_id))
-        .order_by(RecordCluster.size.desc(), RecordCluster.created_at.asc())
-        .offset(params.offset)
-        .limit(params.limit)
+    out = await list_cluster_payloads(
+        session,
+        uuid.UUID(params.project_id),
+        limit=params.limit,
+        offset=params.offset,
     )
-    clusters = list(rows.scalars().all())
-    # Bulk-load canonical records so the screening UI has abstract + metadata.
-    canonical_ids = [c.canonical_record_id for c in clusters]
-    canonical_map: dict[uuid.UUID, Record] = {}
-    if canonical_ids:
-        rec_rows = await session.execute(
-            select(Record).where(Record.id.in_(canonical_ids))
-        )
-        canonical_map = {r.id: r for r in rec_rows.scalars().all()}
-    out = []
-    for c in clusters:
-        d = _cluster_out(c)
-        d["canonical"] = _canonical_out(canonical_map.get(c.canonical_record_id))
-        out.append(d)
     return {"clusters": out}
 
 
@@ -262,4 +217,4 @@ async def manual_merge(
     )
     await session.commit()
     await session.refresh(canonical)
-    return _cluster_out(canonical)
+    return cluster_payload(canonical, None)

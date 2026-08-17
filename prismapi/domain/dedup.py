@@ -123,8 +123,9 @@ def cluster_records(
     norm_title_year_index: dict[tuple[str, int], str] = {}
     # Year-blocked fuzzy pool. None holds year-less records, which are
     # candidates for every comparison.
-    fuzzy_buckets: dict[int | None, list[tuple[RecordSnapshot, str]]] = {}
-    cluster_key_of: dict[uuid.UUID, str] = {}
+    # Bucket entries carry the pre-normalized title: normalizing every
+    # candidate on every probe dominated the fuzzy pass at scale.
+    fuzzy_buckets: dict[int | None, list[tuple[RecordSnapshot, str, str]]] = {}
 
     # Sort: more complete first, so canonical = richest record.
     ordered = sorted(snapshots, key=lambda s: (-s.completeness, str(s.id)))
@@ -140,12 +141,11 @@ def cluster_records(
             pmid_index.setdefault(npmid, key)
         if ntitle and snap.year and len(ntitle) >= 10:
             norm_title_year_index.setdefault((ntitle, snap.year), key)
-        fuzzy_buckets.setdefault(snap.year, []).append((snap, key))
-        cluster_key_of[snap.id] = key
+        fuzzy_buckets.setdefault(snap.year, []).append((snap, key, ntitle))
 
-    def _fuzzy_candidates(year: int | None) -> list[tuple[RecordSnapshot, str]]:
+    def _fuzzy_candidates(year: int | None) -> list[tuple[RecordSnapshot, str, str]]:
         if year is None:
-            out: list[tuple[RecordSnapshot, str]] = []
+            out: list[tuple[RecordSnapshot, str, str]] = []
             for bucket in fuzzy_buckets.values():
                 out.extend(bucket)
             return out
@@ -159,10 +159,10 @@ def cluster_records(
             return None
         authors_a = _author_surnames(snap.authors)
         best: tuple[str, float] | None = None
-        for other, other_key in _fuzzy_candidates(snap.year):
-            if other.id == snap.id or not other.title:
+        for other, other_key, other_ntitle in _fuzzy_candidates(snap.year):
+            if other.id == snap.id or not other_ntitle:
                 continue
-            ratio = fuzz.token_sort_ratio(ntitle, normalize_title(other.title))
+            ratio = fuzz.token_sort_ratio(ntitle, other_ntitle)
             if ratio < fuzzy_title_threshold:
                 continue
             authors_b = _author_surnames(other.authors)

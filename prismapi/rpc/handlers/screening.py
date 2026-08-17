@@ -171,38 +171,27 @@ async def queue(
     whose final title/abstract decision was include or maybe; extraction
     (and RoB) cover only clusters included at full text.
     """
-    from prismapi.db.models import Record, RecordCluster
-    from prismapi.rpc.handlers.dedup import _canonical_out, _cluster_out
+    from prismapi.services.dedup import list_cluster_payloads
     from prismapi.services.phase_completion import (
         extraction_pool_ids,
         full_text_pool_ids,
     )
 
     project = await _assert_member(session, uuid.UUID(params.project_id), identity_id)
-    q = select(RecordCluster).where(RecordCluster.project_id == project.id)
+    only_ids = None
     if params.stage in ("full_text", "extraction"):
-        pool = (
+        only_ids = (
             await full_text_pool_ids(session, project.id)
             if params.stage == "full_text"
             else await extraction_pool_ids(session, project.id)
         )
-        if not pool:
+        if not only_ids:
             return {"clusters": []}
-        q = q.where(RecordCluster.id.in_(pool))
-    rows = await session.execute(
-        q.order_by(RecordCluster.size.desc(), RecordCluster.created_at.asc())
-        .offset(params.offset)
-        .limit(params.limit)
+    out = await list_cluster_payloads(
+        session,
+        project.id,
+        only_ids=only_ids,
+        limit=params.limit,
+        offset=params.offset,
     )
-    clusters = list(rows.scalars().all())
-    canonical_ids = [c.canonical_record_id for c in clusters]
-    canonical_map = {}
-    if canonical_ids:
-        rec_rows = await session.execute(select(Record).where(Record.id.in_(canonical_ids)))
-        canonical_map = {r.id: r for r in rec_rows.scalars().all()}
-    out = []
-    for c in clusters:
-        d = _cluster_out(c)
-        d["canonical"] = _canonical_out(canonical_map.get(c.canonical_record_id))
-        out.append(d)
     return {"clusters": out}
