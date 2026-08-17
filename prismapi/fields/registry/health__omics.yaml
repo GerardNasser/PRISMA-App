@@ -1,5 +1,5 @@
 id: health__omics
-version: 0.3.0
+version: 0.3.1
 effective_date: "2026-08-16"
 field: health
 review_type: omics
@@ -14,9 +14,9 @@ branch_choices:
     label: "Primary study design"
     required: false
     description: >
-      Decides the risk-of-bias instrument. Randomised designs get Cochrane
-      RoB 2; non-randomised interventions get ROBINS-I; correlational and
-      longitudinal (prognostic-style) studies get QUIPS.
+      Decides the risk-of-bias instrument. Randomised trials get Cochrane
+      RoB 2; observational designs (cohort, case-control, cross-sectional)
+      get ROBINS-E.
     options:
       - {value: observational, label: "Observational (cohort / case-control / cross-sectional)"}
       - {value: rct, label: "Randomised controlled trial"}

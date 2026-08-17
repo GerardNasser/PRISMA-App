@@ -1,5 +1,5 @@
 id: social__education
-version: 0.3.0
+version: 0.3.1
 effective_date: "2026-08-16"
 field: social
 review_type: education
@@ -14,9 +14,9 @@ branch_choices:
     label: "Primary study design"
     required: false
     description: >
-      Decides the risk-of-bias instrument. Randomised designs get Cochrane
-      RoB 2; non-randomised interventions get ROBINS-I; correlational and
-      longitudinal (prognostic-style) studies get QUIPS.
+      Decides the risk-of-bias instrument. Randomised and cluster-randomised
+      designs get Cochrane RoB 2; quasi-experimental and regression-
+      discontinuity designs get ROBINS-I.
     options:
       - {value: rct, label: "Randomised controlled trial"}
       - {value: cluster_rct, label: "Cluster RCT"}

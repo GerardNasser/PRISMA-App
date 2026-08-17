@@ -105,6 +105,23 @@ BUILTIN_ROB_TOOLS: dict[str, dict] = {
         ],
         "scale": ["yes", "no", "unclear"],
     },
+    "CASP_QUAL": {
+        # CASP qualitative-studies checklist, casp-uk.net.
+        "label": "CASP qualitative checklist",
+        "domains": [
+            {"key": "aims", "label": "Clear statement of the aims of the research"},
+            {"key": "methodology", "label": "Qualitative methodology appropriate"},
+            {"key": "design", "label": "Research design appropriate to the aims"},
+            {"key": "recruitment", "label": "Recruitment strategy appropriate to the aims"},
+            {"key": "data_collection", "label": "Data collected in a way that addressed the research issue"},
+            {"key": "reflexivity", "label": "Researcher-participant relationship adequately considered"},
+            {"key": "ethics", "label": "Ethical issues taken into consideration"},
+            {"key": "analysis", "label": "Data analysis sufficiently rigorous"},
+            {"key": "findings", "label": "Clear statement of findings"},
+            {"key": "value", "label": "Value of the research"},
+        ],
+        "scale": ["yes", "cant_tell", "no"],
+    },
     "JBI_PER_DESIGN": {
         "label": "JBI critical appraisal (routed by study design at extraction time)",
         "domains": [],
