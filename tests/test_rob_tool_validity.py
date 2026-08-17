@@ -6,7 +6,8 @@ import pytest
 
 from prismapi.fields.loader import field_registry
 from prismapi.fields.validate import check_rob_tools
-from prismapi.services.extraction import BUILTIN_ROB_TOOLS, resolve_rob_spec
+from prismapi.services.extraction import resolve_rob_spec
+
 
 def test_every_shipped_tool_resolves():
     field_registry.load()

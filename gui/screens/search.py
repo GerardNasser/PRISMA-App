@@ -238,21 +238,30 @@ class SearchPanel(ctk.CTkFrame):
         )
         if not path:
             return
+        if getattr(self, "_import_busy", False):
+            return
+        self._import_busy = True
+
         def _done(res: dict) -> None:
+            self._import_busy = False
             self.app.toast(
                 f"Imported {res['inserted']} records",
                 f"from {res['database']}; skipped {res['skipped']}",
                 variant="ok",
             )
             self.refresh()
-            self.app.refresh_project_phases()
+
+        def _error(e: Exception) -> None:
+            self._import_busy = False
+            self.app.toast("Import failed", str(e), variant="danger")
 
         self.app.rpc_bg(
             "searches.import_results",
             {"project_id": self.project["id"], "input_path": path},
             on_done=_done,
-            on_error=lambda e: self.app.toast("Import failed", str(e), variant="danger"),
+            on_error=_error,
             widget=self,
+            refresh_phases=True,
         )
 
     def _import_ris(self) -> None:
@@ -268,10 +277,18 @@ class SearchPanel(ctk.CTkFrame):
         except Exception as e:
             self.app.toast("Couldn't read file", str(e), variant="danger")
             return
+        if getattr(self, "_import_busy", False):
+            return
+        self._import_busy = True
+
         def _done(res: dict) -> None:
+            self._import_busy = False
             self.app.toast(f"Imported {res['hit_count']} records", variant="ok")
             self.refresh()
-            self.app.refresh_project_phases()
+
+        def _error(e: Exception) -> None:
+            self._import_busy = False
+            self.app.toast("Import failed", str(e), variant="danger")
 
         self.app.rpc_bg(
             "searches.run",
@@ -282,6 +299,7 @@ class SearchPanel(ctk.CTkFrame):
                 "payload": payload,
             },
             on_done=_done,
-            on_error=lambda e: self.app.toast("Import failed", str(e), variant="danger"),
+            on_error=_error,
             widget=self,
+            refresh_phases=True,
         )

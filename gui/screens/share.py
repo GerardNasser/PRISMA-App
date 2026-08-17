@@ -129,12 +129,13 @@ class SharePanel(ctk.CTkFrame):
         nav.pack(fill="x", pady=12)
         SecondaryButton(nav, "Discard", command=self._discard).pack(side="left")
         ready = all(self._key(c) in self.resolutions for c in conflicts)
-        PrimaryButton(
+        self.apply_btn = PrimaryButton(
             nav,
             "Apply merge",
             command=self._merge,
             state="normal" if ready else "disabled",
-        ).pack(side="right")
+        )
+        self.apply_btn.pack(side="right")
 
     def _key(self, c: dict) -> str:
         return c["kind"] + ":" + "|".join(f"{k}={v}" for k, v in sorted(c["key"].items()))
@@ -190,14 +191,22 @@ class SharePanel(ctk.CTkFrame):
             c.destroy()
 
     def _merge(self) -> None:
-        if not self.import_path:
+        if not self.import_path or getattr(self, "_merge_busy", False):
             return
+        # One merge at a time: a second click while the first runs would
+        # insert the same rows twice and die on unique constraints.
+        self._merge_busy = True
+        self.apply_btn.configure(state="disabled", text="Merging…")
 
         def _done(_result) -> None:
+            self._merge_busy = False
             self.app.toast("Merge applied", variant="ok")
             self._discard()
-            # Merged decisions can complete a stage and open the next phase.
-            self.app.refresh_project_phases()
+
+        def _error(e: Exception) -> None:
+            self._merge_busy = False
+            self.apply_btn.configure(state="normal", text="Apply merge")
+            self.app.toast("Merge failed", str(e), variant="danger")
 
         self.app.rpc_bg(
             "statefile.merge",
@@ -207,6 +216,7 @@ class SharePanel(ctk.CTkFrame):
                 "take_pre_import_snapshot": True,
             },
             on_done=_done,
-            on_error=lambda e: self.app.toast("Merge failed", str(e), variant="danger"),
+            on_error=_error,
             widget=self,
+            refresh_phases=True,
         )

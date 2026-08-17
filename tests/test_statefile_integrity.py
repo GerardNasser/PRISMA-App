@@ -226,8 +226,6 @@ async def test_keep_incoming_supersedes_local_version(
     import hashlib
     import uuid as uuid_mod
 
-    from sqlalchemy import select
-
     from prismapi.db.base import get_sessionmaker
     from prismapi.db.models import Protocol
 

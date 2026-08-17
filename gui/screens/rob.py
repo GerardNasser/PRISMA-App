@@ -171,5 +171,7 @@ class RoBPanel(ctk.CTkFrame):
             )
             self.mine_by_cluster[self.active_cluster["id"]] = saved
             self.app.toast("RoB saved", variant="ok")
+            # The first assessment opens the synthesis gate.
+            self.app.refresh_project_phases()
         except Exception as e:
             self.app.toast("Save failed", str(e), variant="danger")

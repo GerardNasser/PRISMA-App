@@ -627,13 +627,16 @@ class ScreeningPanel(ctk.CTkFrame):
             self.active_exclude_rule = None
             self._render_rule_strip()
         self._refresh_irr()
+        stage_complete = len(self.decisions_by_cluster) >= len(self.clusters)
         if self.idx >= len(self.clusters) - 1:
-            # Last study: nothing to advance to, so re-render in place and
-            # let the sidebar re-check whether the next phase just opened.
+            # Last study: nothing to advance to, so re-render in place.
             self._render()
-            self.app.refresh_project_phases()
         else:
             self._advance(1)
+        if stage_complete:
+            # Deciding the final missing study can happen mid-list too
+            # (revisits): re-check the locks whenever my set is complete.
+            self.app.refresh_project_phases()
 
     def _advance(self, delta: int) -> None:
         if not self.clusters:

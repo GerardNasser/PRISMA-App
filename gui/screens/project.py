@@ -192,7 +192,7 @@ class ProjectFrame(ctk.CTkFrame):
         # the Risk of bias panel actually renders.
         try:
             rob_tool = self.app.rpc.call("rob.tool", {"project_id": self.project_id})["tool"]
-        except Exception:  # noqa: BLE001 - module disabled or config error
+        except Exception:
             rob_tool = self.config["risk_of_bias"]["tool"]
         for label, value in [
             ("Reporting", ", ".join([self.config["reporting"]["primary"]] + self.config["reporting"]["extensions"])),

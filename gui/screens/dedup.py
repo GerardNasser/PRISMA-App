@@ -46,8 +46,6 @@ class DedupPanel(ctk.CTkFrame):
             _restore_btn()
             self.app.toast("Dedup complete", variant="ok")
             self.refresh()
-            # New clusters unlock title/abstract screening.
-            self.app.refresh_project_phases()
 
         def _error(e: Exception) -> None:
             from tkinter import messagebox
@@ -74,6 +72,7 @@ class DedupPanel(ctk.CTkFrame):
             on_done=_done,
             on_error=_error,
             widget=self,
+            refresh_phases=True,
         )
 
     def refresh(self) -> None:

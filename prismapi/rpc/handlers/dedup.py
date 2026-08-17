@@ -157,8 +157,8 @@ async def _migrate_cluster_work(
             await session.execute(select(model).where(model.cluster_id == canonical_id))
         ).scalars().all()
 
-        def key_of(row):
-            return tuple(getattr(row, c) for c in key_cols)
+        def key_of(row, _cols=key_cols):
+            return tuple(getattr(row, c) for c in _cols)
 
         canonical_by_key = {key_of(r): r for r in canonical_rows}
         for row in losing_rows:

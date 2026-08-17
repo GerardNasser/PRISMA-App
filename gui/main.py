@@ -51,6 +51,7 @@ class PrismAPIApp(ctk.CTk):
 
         self.rpc = RpcClient()
         self.identity = self.rpc.call("identity.get")
+        self._bg_pending: list = []
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # Persistent container — never destroyed; we destroy and rebuild its
@@ -192,37 +193,64 @@ class PrismAPIApp(ctk.CTk):
         on_done,
         on_error=None,
         widget=None,
+        refresh_phases: bool = False,
     ) -> None:
         """Run an RPC on the background loop and deliver the result on the
         Tk main thread. Slow handlers (dedup, imports, statefile) must come
         through here — a blocking `rpc.call` freezes the whole window.
 
-        `widget`: when given, callbacks are dropped if it was destroyed
-        while the call was in flight (the user navigated away).
+        The outcome is ALWAYS consumed. If `widget` died mid-flight (the
+        user navigated away), the per-widget callbacks are skipped, but an
+        error still raises an app-level toast and `refresh_phases` still
+        runs — a finished import must update the sidebar even when its
+        panel is gone. Exceptions inside callbacks surface as toasts
+        instead of vanishing into the Tk event loop.
         """
         future = self.rpc.call_async(method, params or {})
 
-        def _poll() -> None:
-            if not future.done():
-                self.after(60, _poll)
-                return
+        def _finalize(fut) -> None:
+            try:
+                result = fut.result()
+                error = None
+            except Exception as exc:
+                result, error = None, exc
+            widget_alive = True
             if widget is not None:
                 try:
-                    if not widget.winfo_exists():
-                        return
+                    widget_alive = bool(widget.winfo_exists())
                 except Exception:
-                    return
-            try:
-                result = future.result()
-            except Exception as exc:
-                if on_error is not None:
-                    on_error(exc)
+                    widget_alive = False
+            if error is not None:
+                if on_error is not None and widget_alive:
+                    self._run_callback(on_error, error)
                 else:
-                    self.toast("Operation failed", str(exc), variant="danger")
-                return
-            on_done(result)
+                    self.toast(f"{method} failed", str(error), variant="danger")
+            elif widget_alive:
+                self._run_callback(on_done, result)
+            if refresh_phases:
+                self.refresh_project_phases()
 
-        _poll()
+        self._bg_pending.append((future, _finalize))
+        if len(self._bg_pending) == 1:
+            self.after(60, self._drain_bg)
+
+    def _run_callback(self, fn, arg) -> None:
+        try:
+            fn(arg)
+        except Exception as exc:
+            self.toast("Display update failed", str(exc), variant="danger")
+
+    def _drain_bg(self) -> None:
+        """One shared poll timer for every in-flight background RPC."""
+        still_pending = []
+        for future, finalize in self._bg_pending:
+            if future.done():
+                finalize(future)
+            else:
+                still_pending.append((future, finalize))
+        self._bg_pending = still_pending
+        if still_pending:
+            self.after(60, self._drain_bg)
 
     RPC_PAGE_SIZE = 500
 
