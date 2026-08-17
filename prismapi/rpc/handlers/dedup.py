@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prismapi.db.models import (
@@ -222,13 +222,20 @@ async def manual_merge(
     for c in clusters:
         new_members.extend(c.merge_graph.get("members", []))
         if c.id != canonical.id:
-            rows = await session.execute(
-                select(RecordClusterMember).where(RecordClusterMember.cluster_id == c.id)
+            # Bulk UPDATE, not per-row attribute assignment: rows moved via
+            # the ORM stay in the losing cluster's `members` collection, and
+            # session.delete(c) fires its delete-orphan cascade over that
+            # collection — deleting the freshly re-pointed rows.
+            await session.execute(
+                update(RecordClusterMember)
+                .where(RecordClusterMember.cluster_id == c.id)
+                .values(
+                    cluster_id=canonical.id,
+                    match_reason="manual_merge",
+                    match_score=1.0,
+                )
             )
-            for m in rows.scalars().all():
-                m.cluster_id = canonical.id
-                m.match_reason = "manual_merge"
-                m.match_score = 1.0
+            session.expire(c, ["members"])
             await _migrate_cluster_work(session, c.id, canonical.id, migrated, dropped)
             await session.delete(c)
     canonical.size = len(new_members)

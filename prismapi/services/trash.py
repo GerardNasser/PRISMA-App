@@ -146,15 +146,23 @@ def _summarise(row: Any, kind: str) -> str:
     return str(row.id)
 
 
+def _record_completeness(r: Record) -> int:
+    """Rough completeness score so the richest record becomes canonical."""
+    fields = (r.title, r.abstract, r.authors, r.journal, r.year, r.doi, r.pmid)
+    return sum(1 for f in fields if f)
+
+
 async def _detach_clusters_from_searches(
     session: AsyncSession, search_ids: list[uuid.UUID]
 ) -> None:
     """Prepare clusters for the hard-delete of `search_ids`.
 
-    Deleting a search cascades its records away, but `canonical_record_id`
-    on clusters is RESTRICT, so any cluster whose canonical record belongs
-    to a doomed search must first be re-pointed to a surviving member — or
-    deleted outright when no member survives.
+    Deleting a search cascades its records away. Every cluster holding a
+    doomed record needs its bookkeeping rewritten — not only clusters whose
+    canonical record dies (the RESTRICT FK case), but also clusters that
+    merely lose a member, whose `size` and `merge_graph` would otherwise
+    keep counting ghosts. Clusters with no surviving member are deleted;
+    a replaced canonical is the most complete surviving record.
     """
     if not search_ids:
         return
@@ -163,35 +171,70 @@ async def _detach_clusters_from_searches(
     )
     if not doomed_records:
         return
-    clusters = (
-        await session.execute(
-            select(RecordCluster).where(
+    affected_ids = set(
+        await session.scalars(
+            select(RecordClusterMember.cluster_id).where(
+                RecordClusterMember.record_id.in_(doomed_records)
+            )
+        )
+    )
+    affected_ids |= set(
+        await session.scalars(
+            select(RecordCluster.id).where(
                 RecordCluster.canonical_record_id.in_(doomed_records)
             )
         )
-    ).scalars().all()
-    for cluster in clusters:
-        member_ids = list(
-            await session.scalars(
-                select(RecordClusterMember.record_id).where(
-                    RecordClusterMember.cluster_id == cluster.id
-                )
-            )
+    )
+    if not affected_ids:
+        return
+    clusters = (
+        await session.execute(
+            select(RecordCluster).where(RecordCluster.id.in_(affected_ids))
         )
-        survivors = [rid for rid in member_ids if rid not in doomed_records]
+    ).scalars().all()
+    member_rows = await session.execute(
+        select(RecordClusterMember.cluster_id, RecordClusterMember.record_id).where(
+            RecordClusterMember.cluster_id.in_(affected_ids)
+        )
+    )
+    members_by_cluster: dict[uuid.UUID, list[uuid.UUID]] = {}
+    all_member_ids: set[uuid.UUID] = set()
+    for cluster_id, record_id in member_rows:
+        members_by_cluster.setdefault(cluster_id, []).append(record_id)
+        all_member_ids.add(record_id)
+    surviving_ids = all_member_ids - doomed_records
+    records_by_id: dict[uuid.UUID, Record] = {}
+    if surviving_ids:
+        rec_rows = await session.execute(
+            select(Record).where(Record.id.in_(surviving_ids))
+        )
+        records_by_id = {r.id: r for r in rec_rows.scalars().all()}
+
+    doomed_strs = {str(rid) for rid in doomed_records}
+    for cluster in clusters:
+        survivors = [
+            rid
+            for rid in members_by_cluster.get(cluster.id, [])
+            if rid not in doomed_records
+        ]
         if not survivors:
             await session.delete(cluster)
             continue
-        cluster.canonical_record_id = survivors[0]
+        best = max(
+            survivors,
+            key=lambda rid: (
+                _record_completeness(records_by_id[rid]) if rid in records_by_id else -1,
+                str(rid),
+            ),
+        )
+        cluster.canonical_record_id = best
         cluster.size = len(survivors)
         graph = cluster.merge_graph or {}
         members = graph.get("members", [])
-        doomed_strs = {str(rid) for rid in doomed_records}
-        graph = {
+        cluster.merge_graph = {
             **graph,
             "members": [m for m in members if m.get("record_id") not in doomed_strs],
         }
-        cluster.merge_graph = graph
     await session.flush()
 
 
