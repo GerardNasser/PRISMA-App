@@ -189,10 +189,11 @@ class ScreeningPanel(ctk.CTkFrame):
     def _load(self) -> None:
         self.load_error = None
         try:
-            self.clusters = self.app.rpc.call(
+            self.clusters = self.app.rpc_fetch_all(
                 "screening.queue",
-                {"project_id": self.project["id"], "stage": self.stage, "limit": 1000},
-            )["clusters"]
+                {"project_id": self.project["id"], "stage": self.stage},
+                "clusters",
+            )
         except Exception as e:
             self.clusters = []
             self.load_error = str(e)
@@ -214,7 +215,14 @@ class ScreeningPanel(ctk.CTkFrame):
                 "screening.decisions.list",
                 {"project_id": self.project["id"], "stage": self.stage},
             )["decisions"]
-            self.decisions_by_cluster = {d["cluster_id"]: d for d in ds}
+            # Only MY decisions: a collaborator's imported votes must not
+            # render as "already decided" for this reviewer.
+            me = self.app.identity["id"]
+            self.decisions_by_cluster = {
+                d["cluster_id"]: d
+                for d in ds
+                if d["reviewer_identity_id"] == me
+            }
         except Exception:
             self.decisions_by_cluster = {}
         self._refresh_irr()

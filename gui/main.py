@@ -224,6 +224,26 @@ class PrismAPIApp(ctk.CTk):
 
         _poll()
 
+    RPC_PAGE_SIZE = 500
+
+    def rpc_fetch_all(self, method: str, params: dict, key: str) -> list:
+        """Page through a limit/offset RPC until exhausted.
+
+        Screens must never trust a single capped page: the phase gates count
+        every cluster, so a truncated list makes completion unreachable.
+        """
+        out: list = []
+        offset = 0
+        while True:
+            page = self.rpc.call(
+                method,
+                {**params, "limit": self.RPC_PAGE_SIZE, "offset": offset},
+            )[key]
+            out.extend(page)
+            if len(page) < self.RPC_PAGE_SIZE:
+                return out
+            offset += self.RPC_PAGE_SIZE
+
     def refresh_project_phases(self) -> None:
         """Re-evaluate sidebar phase locks after a mutation, if a project is open.
 

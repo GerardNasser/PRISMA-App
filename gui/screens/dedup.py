@@ -76,24 +76,19 @@ class DedupPanel(ctk.CTkFrame):
             widget=self,
         )
 
-    _LIMIT = 1000
-
     def refresh(self) -> None:
         for c in self.summary_inner.winfo_children():
             c.destroy()
         for c in self.list_wrap.winfo_children():
             c.destroy()
         try:
-            clusters = self.app.rpc.call(
-                "dedup.clusters.list",
-                {"project_id": self.project["id"], "limit": self._LIMIT},
-            )["clusters"]
+            clusters = self.app.rpc_fetch_all(
+                "dedup.clusters.list", {"project_id": self.project["id"]}, "clusters"
+            )
         except Exception as e:
             Helper(self.summary_inner, f"Couldn't load clusters: {e}").pack(anchor="w")
             return
         count_text = f"{len(clusters)} cluster{'s' if len(clusters) != 1 else ''}"
-        if len(clusters) == self._LIMIT:
-            count_text = f"first {self._LIMIT} clusters shown"
         ctk.CTkLabel(
             self.summary_inner,
             text=count_text,
