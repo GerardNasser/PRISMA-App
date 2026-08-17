@@ -105,13 +105,19 @@ def _full_text_pool(
     resolutions: dict[uuid.UUID, str],
     raters: set[uuid.UUID],
     clusters: set[uuid.UUID],
-) -> set[uuid.UUID]:
-    """Clusters whose final title/abstract decision advances them to full text."""
+) -> tuple[set[uuid.UUID], int]:
+    """(advancing clusters, pending-conflict count) at title/abstract.
+
+    A cluster is pending when every rater has voted, the votes disagree, and
+    no arbitration exists yet — its fate is undecided, so the pool cannot be
+    treated as final while any remain.
+    """
     by_cluster: dict[uuid.UUID, dict[uuid.UUID, str]] = defaultdict(dict)
     for reviewer_id, cluster_id, decision in ta_decisions:
         if cluster_id in clusters:
             by_cluster[cluster_id][reviewer_id] = decision
     pool: set[uuid.UUID] = set()
+    pending = 0
     for cluster_id in clusters:
         if cluster_id in resolutions:
             if resolutions[cluster_id] in ADVANCING_DECISIONS:
@@ -120,9 +126,24 @@ def _full_text_pool(
         votes = by_cluster.get(cluster_id, {})
         if raters and raters <= set(votes):
             distinct = {votes[r] for r in raters}
-            if len(distinct) == 1 and distinct <= ADVANCING_DECISIONS:
-                pool.add(cluster_id)
-    return pool
+            if len(distinct) == 1:
+                if distinct <= ADVANCING_DECISIONS:
+                    pool.add(cluster_id)
+            else:
+                pending += 1
+    return pool, pending
+
+
+async def _ta_resolutions(
+    session: AsyncSession, project_id: uuid.UUID
+) -> dict[uuid.UUID, str]:
+    rows = await session.execute(
+        select(ConflictResolution.cluster_id, ConflictResolution.final_decision).where(
+            ConflictResolution.project_id == project_id,
+            ConflictResolution.stage == "title_abstract",
+        )
+    )
+    return {row[0]: row[1] for row in rows}
 
 
 async def full_text_pool_ids(
@@ -132,14 +153,9 @@ async def full_text_pool_ids(
     raters = await _rater_identity_ids(session, project_id)
     clusters = await _live_cluster_ids(session, project_id)
     ta_decisions = await _stage_decisions(session, project_id, "title_abstract")
-    resolution_rows = await session.execute(
-        select(ConflictResolution.cluster_id, ConflictResolution.final_decision).where(
-            ConflictResolution.project_id == project_id,
-            ConflictResolution.stage == "title_abstract",
-        )
-    )
-    resolutions = {row[0]: row[1] for row in resolution_rows}
-    return _full_text_pool(ta_decisions, resolutions, raters, clusters)
+    resolutions = await _ta_resolutions(session, project_id)
+    pool, _pending = _full_text_pool(ta_decisions, resolutions, raters, clusters)
+    return pool
 
 
 async def gate_state(session: AsyncSession, project_id: uuid.UUID) -> GateState:
@@ -162,28 +178,19 @@ async def gate_state(session: AsyncSession, project_id: uuid.UUID) -> GateState:
 
     ta_decisions = await _stage_decisions(session, project_id, "title_abstract")
     ft_decisions = await _stage_decisions(session, project_id, "full_text")
-    resolution_rows = await session.execute(
-        select(ConflictResolution.cluster_id, ConflictResolution.final_decision).where(
-            ConflictResolution.project_id == project_id,
-            ConflictResolution.stage == "title_abstract",
-        )
-    )
-    resolutions = {row[0]: row[1] for row in resolution_rows}
+    resolutions = await _ta_resolutions(session, project_id)
 
     n_ta_done = _stage_done_raters(
         [(r, c) for r, c, _ in ta_decisions], raters, clusters
     )
-    ta_complete = bool(clusters) and n_ta_done == len(raters) and bool(raters)
-
-    ft_pool = _full_text_pool(ta_decisions, resolutions, raters, clusters)
-    if ft_pool:
-        n_ft_done = _stage_done_raters(
-            [(r, c) for r, c, _ in ft_decisions], raters, ft_pool
-        )
-    else:
-        # No cluster advanced. Once TA is complete there is nothing to read,
-        # so full text is trivially complete for everyone.
-        n_ft_done = len(raters) if ta_complete else 0
+    ft_pool, n_pending = _full_text_pool(ta_decisions, resolutions, raters, clusters)
+    # Real count only — an empty pool reports zero done, and the gate logic
+    # decides whether that means "nothing to read" or "conflicts unresolved".
+    n_ft_done = (
+        _stage_done_raters([(r, c) for r, c, _ in ft_decisions], raters, ft_pool)
+        if ft_pool
+        else 0
+    )
 
     has_extraction = bool(
         await session.scalar(
@@ -211,6 +218,8 @@ async def gate_state(session: AsyncSession, project_id: uuid.UUID) -> GateState:
         n_clusters=len(clusters),
         n_ta_done_raters=n_ta_done,
         n_ft_done_raters=n_ft_done,
+        n_ft_pool=len(ft_pool),
+        n_conflicts_pending=n_pending,
         has_extraction=has_extraction,
         has_rob=has_rob,
         has_synthesis=False,

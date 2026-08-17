@@ -50,7 +50,14 @@ def next_phase(phase: Phase) -> Phase | None:
 
 @dataclass(frozen=True, slots=True)
 class GateState:
-    """Snapshot of the project state used to evaluate phase gates."""
+    """Snapshot of the project state used to evaluate phase gates.
+
+    Every field is a literal fact about the database — never a value
+    pre-cooked to make a gate pass. `n_ft_pool` is the number of clusters
+    that advanced to full text; `n_conflicts_pending` counts title/abstract
+    disagreements with no arbitration yet, which block the pool from being
+    considered final.
+    """
     project_exists: bool
     n_raters: int
     has_protocol: bool
@@ -58,6 +65,8 @@ class GateState:
     n_clusters: int
     n_ta_done_raters: int
     n_ft_done_raters: int
+    n_ft_pool: int
+    n_conflicts_pending: int
     has_extraction: bool
     has_rob: bool
     has_synthesis: bool
@@ -99,7 +108,17 @@ def gate_satisfied(phase: Phase, state: GateState) -> tuple[bool, str]:
     if phase == Phase.EXTRACTION:
         if state.n_raters == 0:
             return False, "Enroll at least one rater first."
-        if state.n_ft_done_raters < state.n_raters:
+        if state.n_ta_done_raters < state.n_raters:
+            return False, (
+                f"Title/abstract screening incomplete: "
+                f"{state.n_ta_done_raters}/{state.n_raters} raters marked done."
+            )
+        if state.n_conflicts_pending > 0:
+            return False, (
+                f"{state.n_conflicts_pending} title/abstract conflict(s) need "
+                "arbitration before the included set is final."
+            )
+        if state.n_ft_pool > 0 and state.n_ft_done_raters < state.n_raters:
             return False, (
                 f"Full-text screening incomplete: "
                 f"{state.n_ft_done_raters}/{state.n_raters} raters marked done."

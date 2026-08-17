@@ -41,7 +41,7 @@ def test_phase_values_are_lowercase_strings():
 def test_gate_setup_always_satisfied():
     state = GateState(project_exists=True, n_raters=0, has_protocol=False,
                        n_records=0, n_clusters=0, n_ta_done_raters=0,
-                       n_ft_done_raters=0, has_extraction=False, has_rob=False,
+                       n_ft_done_raters=0, n_ft_pool=0, n_conflicts_pending=0, has_extraction=False, has_rob=False,
                        has_synthesis=False)
     ok, _ = gate_satisfied(Phase.SETUP, state)
     assert ok
@@ -50,7 +50,7 @@ def test_gate_setup_always_satisfied():
 def test_gate_codebook_requires_protocol():
     state = GateState(project_exists=True, n_raters=2, has_protocol=False,
                        n_records=10, n_clusters=10, n_ta_done_raters=0,
-                       n_ft_done_raters=0, has_extraction=False, has_rob=False,
+                       n_ft_done_raters=0, n_ft_pool=0, n_conflicts_pending=0, has_extraction=False, has_rob=False,
                        has_synthesis=False)
     ok, reason = gate_satisfied(Phase.CODEBOOK, state)
     assert not ok
@@ -60,7 +60,7 @@ def test_gate_codebook_requires_protocol():
 def test_gate_title_abstract_requires_dedup_and_codebook():
     state = GateState(project_exists=True, n_raters=2, has_protocol=True,
                        n_records=10, n_clusters=0, n_ta_done_raters=0,
-                       n_ft_done_raters=0, has_extraction=False, has_rob=False,
+                       n_ft_done_raters=0, n_ft_pool=0, n_conflicts_pending=0, has_extraction=False, has_rob=False,
                        has_synthesis=False)
     ok, reason = gate_satisfied(Phase.TITLE_ABSTRACT, state)
     assert not ok
@@ -70,7 +70,7 @@ def test_gate_title_abstract_requires_dedup_and_codebook():
 def test_gate_full_text_requires_all_ta_raters_done():
     state = GateState(project_exists=True, n_raters=3, has_protocol=True,
                        n_records=10, n_clusters=10, n_ta_done_raters=2,
-                       n_ft_done_raters=0, has_extraction=False, has_rob=False,
+                       n_ft_done_raters=0, n_ft_pool=0, n_conflicts_pending=0, has_extraction=False, has_rob=False,
                        has_synthesis=False)
     ok, _ = gate_satisfied(Phase.FULL_TEXT, state)
     assert not ok
@@ -79,7 +79,27 @@ def test_gate_full_text_requires_all_ta_raters_done():
 def test_gate_full_text_open_when_all_ta_raters_done():
     state = GateState(project_exists=True, n_raters=3, has_protocol=True,
                        n_records=10, n_clusters=10, n_ta_done_raters=3,
-                       n_ft_done_raters=0, has_extraction=False, has_rob=False,
+                       n_ft_done_raters=0, n_ft_pool=0, n_conflicts_pending=0, has_extraction=False, has_rob=False,
                        has_synthesis=False)
     ok, _ = gate_satisfied(Phase.FULL_TEXT, state)
     assert ok
+
+
+def test_gate_extraction_blocked_by_pending_conflicts():
+    state = GateState(project_exists=True, n_raters=2, has_protocol=True,
+                      n_records=5, n_clusters=5, n_ta_done_raters=2,
+                      n_ft_done_raters=0, n_ft_pool=0, n_conflicts_pending=3,
+                      has_extraction=False, has_rob=False, has_synthesis=False)
+    ok, reason = gate_satisfied(Phase.EXTRACTION, state)
+    assert ok is False
+    assert "conflict" in reason
+
+
+def test_gate_extraction_opens_on_truly_empty_pool():
+    # TA complete, nothing advanced, nothing pending: no full-text work exists.
+    state = GateState(project_exists=True, n_raters=2, has_protocol=True,
+                      n_records=5, n_clusters=5, n_ta_done_raters=2,
+                      n_ft_done_raters=0, n_ft_pool=0, n_conflicts_pending=0,
+                      has_extraction=False, has_rob=False, has_synthesis=False)
+    ok, _ = gate_satisfied(Phase.EXTRACTION, state)
+    assert ok is True

@@ -200,11 +200,12 @@ async def test_conflicted_cluster_blocks_pool_until_resolved(dispatcher, seeded)
         await _decide(session, project_id, disputed, seeded["raters"][1], "title_abstract", "exclude")
         await session.commit()
 
-    # TA is done for both raters, but the disputed cluster is unresolved, so
-    # nothing has advanced: full text is trivially complete and extraction opens
-    # only after the conflict resolution decides the pool.
+    # TA is done for both raters, but the disputed cluster is unresolved:
+    # extraction must stay locked until arbitration decides the pool.
     phases = await _phases(dispatcher, project_id)
     assert phases["full_text"]["open"] is True
+    assert phases["extraction"]["open"] is False
+    assert "conflict" in phases["extraction"]["reason"]
 
     async with Session() as session:
         session.add(
