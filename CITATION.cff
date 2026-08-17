@@ -7,7 +7,7 @@ authors:
     given-names: "Gerard"
 version: 0.1.0-beta.1
 date-released: "2026-08-16"
-repository-code: "https://github.com/gerardnasser/PRISMA-App"
+repository-code: "https://github.com/GerardNasser/PRISMA-App"
 license: GPL-3.0-or-later
 abstract: >-
   A desktop application for running PRISMA-2020-compliant systematic

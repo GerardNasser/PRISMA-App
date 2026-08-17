@@ -2,8 +2,8 @@
 
 PrismAPI is a single-process desktop app. One `python app.py` starts a
 CustomTkinter window; the engine — SQLite models, services, and an RPC
-dispatcher — runs inside the same process. There is no web server, no
-sidecar process, no Docker, and nothing listens on any port. The only
+dispatcher — runs inside the same process, without a web server, a
+sidecar process, or Docker. Nothing listens on any port; the only
 network traffic is outbound HTTPS to bibliographic APIs (PubMed, OpenAlex,
 CrossRef) when you run a search.
 
@@ -56,8 +56,8 @@ One SQLite file holds everything. The main tables, in workflow order:
 - `protocols`, `codebooks` (+ `codebook_rules`) — versioned rows; every
   save inserts the next version, nothing is edited in place.
 - `searches`, `records` — each search run persists its exact query, filter
-  set, status, and hits. Failed runs are recorded too (PRISMA-S wants the
-  attempt, not just the successes).
+  set, status, and hits. Failed runs are recorded too, since PRISMA-S asks
+  for every attempt.
 - `record_clusters`, `record_cluster_members` — dedup output; screening,
   extraction, and RoB all key on clusters, not raw records.
 - `screening_decisions`, `conflict_resolutions` — per (cluster, reviewer,

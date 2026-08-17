@@ -20,7 +20,7 @@ Platform: macOS. Windows and Linux builds are planned; `build.py` has a Windows 
 | `docs/` | Architecture notes, the field-config spec, and the PRISMA 2020 reference PDFs. |
 | `build.py` | PyInstaller build for `.app` / `.dmg` (and, untested, `.exe`). |
 
-The engine and GUI live in this one repo and run in the same process — no separate sidecar, no listening sockets, no Docker.
+The engine and GUI live in this one repo and run in a single process, without a sidecar, listening sockets, or Docker.
 
 ---
 
@@ -100,7 +100,7 @@ Each project opens to a sidebar of phases. Locked phases show a lock icon and ex
 - **Overview** — Pinned config summary: reporting, registry, required databases, RoB tool, effect-size default, certainty framework, branch choices, and any field-specific cautions.
 - **Protocol** — Versioned protocol record (title, reviewer config, etc.). Earlier versions stay accessible.
 - **Codebook** — Versioned extraction codebook.
-- **Search** — Configure searches across the databases your field requires; the app can generate a runnable PubMed / OpenAlex / CrossRef script for the configuration. Failed search runs are recorded too — PRISMA-S wants the attempt, not just the wins.
+- **Search** — Configure searches across the databases your field requires; the app can generate a runnable PubMed / OpenAlex / CrossRef script for the configuration. Failed search runs are recorded too, since PRISMA-S asks for every attempt.
 - **De-duplicate** — Auto cluster + manual merge. Re-running dedup after screening has started warns you, takes a snapshot first, and never silently deletes decisions. Manual merges carry existing screening and extraction work over to the surviving cluster.
 - **Title/abstract** — Screening with IRR (Krippendorff α + Cohen κ) against the thresholds you set in the wizard.
 - **Full text** — Second screening pass over the studies that advanced. Full-text exclusions require a codebook reason (PRISMA 2020 item 16b).
