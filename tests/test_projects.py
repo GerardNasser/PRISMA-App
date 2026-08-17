@@ -33,7 +33,7 @@ async def test_create_and_versioned_protocol(dispatcher, local_identity):
         },
     )
     pid = p["id"]
-    assert p["field_config_version"] == "0.3.0"
+    assert p["field_config_version"] == "0.3.1"
     assert p["deleted_at"] is None
 
     pv1 = await dispatcher.call(

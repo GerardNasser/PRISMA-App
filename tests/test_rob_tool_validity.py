@@ -8,9 +8,6 @@ from prismapi.fields.loader import field_registry
 from prismapi.fields.validate import check_rob_tools
 from prismapi.services.extraction import BUILTIN_ROB_TOOLS, resolve_rob_spec
 
-pytestmark = pytest.mark.asyncio
-
-
 def test_every_shipped_tool_resolves():
     field_registry.load()
     for cfg in field_registry.all():
@@ -51,6 +48,7 @@ def test_validator_flags_dead_map_keys():
     assert any("not values of branch choice" in e for e in errors)
 
 
+@pytest.mark.asyncio
 async def test_qualitative_synthesis_rob_tool_resolves(dispatcher, local_identity):
     # CASP_QUAL had no builtin spec, so this call crashed with
     # "Unknown built-in RoB tool" while CI validation stayed green.
