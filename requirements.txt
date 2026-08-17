@@ -6,10 +6,7 @@ aiosqlite==0.22.1
 pyyaml==6.0.3
 jsonschema==4.25.1
 numpy==2.3.2
-structlog==25.5.0
 rapidfuzz==3.14.5
 httpx==0.28.1
-xmltodict==1.0.4
-email-validator==2.3.0
 pillow==12.1.1
 pyinstaller==6.19.0

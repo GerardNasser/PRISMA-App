@@ -146,6 +146,8 @@ def main() -> int:
         s = _get_json(sum_url).get("result", {{}})
         uids = s.get("uids", []) or []
         for uid in uids:
+            if len(records) >= MAX_RESULTS:
+                break
             item = s.get(uid)
             if not isinstance(item, dict):
                 continue

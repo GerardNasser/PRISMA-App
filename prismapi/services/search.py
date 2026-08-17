@@ -52,12 +52,16 @@ async def execute_search(
             all_filter_fragments.append(frag)
     all_filter_fragments.extend(auto_filters)
 
+    recorded_filters = user_filters + [
+        f"auto:{fid}"
+        for fid in (cfg.data.get("databases", {}).get("auto_filters", []) if cfg else [])
+    ]
     search = Search(
         project_id=project.id,
         actor_identity_id=user_id,
         database=database,
         query_string=query,
-        applied_filters=user_filters + [f"auto:{fid}" for fid in (cfg.data.get("databases", {}).get("auto_filters", []) if cfg else [])],
+        applied_filters=recorded_filters,
         options=options or {},
         status="running",
         executed_at=utcnow(),
@@ -115,7 +119,10 @@ async def execute_search(
             actor_identity_id=user_id,
             database=database,
             query_string=query,
-            applied_filters=user_filters,
+            # The failed attempt is the PRISMA-S trace: it must record the
+            # auto-filters that were ANDed into the query, not just the
+            # user's picks, or the attempt cannot be reproduced.
+            applied_filters=recorded_filters,
             options=options or {},
             status="failed",
             error=str(exc),

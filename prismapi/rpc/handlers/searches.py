@@ -198,12 +198,29 @@ async def generate_script(
     params: ScriptIn, session: AsyncSession, identity_id: uuid.UUID
 ) -> dict:
     project = await _assert_member(session, uuid.UUID(params.project_id), identity_id)
+    # `applied_filters` carries the same filter IDS `searches.run` takes.
+    # The script embeds resolved per-database fragments — embedding the raw
+    # ids would AND literal text like "english_language" into the query.
+    from prismapi.adapters.filters import get_filter
+    from prismapi.fields.loader import field_registry
+
+    filter_ids = list(params.applied_filters)
+    cfg = field_registry.by_id(project.field_config_id)
+    if cfg is not None:
+        filter_ids += cfg.data.get("databases", {}).get("auto_filters", [])
+    fragments: list[str] = []
+    for fid in filter_ids:
+        f = get_filter(fid)
+        frag = f.fragment_for(params.database) if f else None
+        if frag:
+            fragments.append(frag)
+
     res = _generate_script(
         database=params.database,
         project_label=project.name,
         project_slug=project.slug,
         query=params.query,
-        applied_filters=params.applied_filters,
+        applied_filters=fragments,
         max_results=params.max_results,
         date_from=params.date_from,
         date_to=params.date_to,
