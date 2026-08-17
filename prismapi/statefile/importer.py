@@ -85,13 +85,23 @@ def _read_json(zf: zipfile.ZipFile, name: str) -> dict[str, Any]:
     return json.loads(zf.read(name))
 
 
-def read_bundle(path: Path) -> dict[str, Any]:
+def read_bundle(path: Path, manifest: Manifest | None = None) -> dict[str, Any]:
     """Parse every table of a validated bundle into JSON rows.
 
     The single reader shared by preview and merge — a second hand-rolled
     copy of this list is how tables silently go missing on one path.
+
+    Pass `manifest` to re-verify every file checksum during this read. The
+    merge path re-opens the zip after the preview validated it, so without
+    this the bytes merged are not the bytes that were checked.
     """
     with zipfile.ZipFile(path, "r") as zf:
+        if manifest is not None:
+            bad = _verify_checksums(zf, manifest)
+            if bad:
+                raise UnsupportedSchemaError(
+                    "Bundle changed since validation: " + ", ".join(bad)
+                )
         return {
             "project": _read_json(zf, "project.json"),
             "protocols": _read_jsonl(zf, "protocols.jsonl"),

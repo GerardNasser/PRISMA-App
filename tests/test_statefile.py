@@ -115,6 +115,17 @@ async def test_export_round_trip_into_fresh_db(dispatcher, local_identity):
     proj = await dispatcher.call("projects.get", {"project_id": pid})
     assert proj["name"] == "Plant microbiome MA"
 
+    # The importing actor (a fresh identity, absent from the exported roster)
+    # is enrolled read_only — a rater role would count them toward the
+    # screening gates and re-lock phases the exporting team completed.
+    members = await dispatcher.call("members.list", {"project_id": pid})
+    by_email = {m["identity"]["email"]: m["role"] for m in members}
+    assert by_email["gerard@example.edu"] == "read_only"
+
+    phases = await dispatcher.call("phases.state", {"project_id": pid})
+    ta = next(p for p in phases if p["phase"] == "title_abstract")
+    assert ta["open"] is True
+
     shutil.rmtree(out_path.parent)
 
 

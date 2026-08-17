@@ -100,10 +100,11 @@ async def merge(
             )
 
     # Re-read the bundle for the merger — through the same reader the
-    # preview used, so both paths always see the same tables.
+    # preview used, with checksums re-verified against the manifest so the
+    # bytes merged are the bytes that were validated.
     from prismapi.statefile.importer import read_bundle
 
-    incoming = read_bundle(path)
+    incoming = read_bundle(path, manifest)
 
     try:
         summary = await apply_merge(

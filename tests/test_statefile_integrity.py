@@ -218,3 +218,95 @@ async def test_protocol_body_divergence_beyond_title_pico_conflicts(
     assert any(
         c["kind"] == "protocol_parallel" for c in preview["diff"]["conflicts"]
     )
+
+
+async def test_keep_incoming_supersedes_local_version(
+    dispatcher, local_identity, tmp_path
+):
+    import hashlib
+    import uuid as uuid_mod
+
+    from sqlalchemy import select
+
+    from prismapi.db.base import get_sessionmaker
+    from prismapi.db.models import Protocol
+
+    pid = await _seed_project(dispatcher)
+    await dispatcher.call("protocols.save", {"project_id": pid, "title": "Local v1"})
+    out = tmp_path / "src.prismaproj"
+    await dispatcher.call("statefile.export", {"project_id": pid, "output_path": str(out)})
+
+    with zipfile.ZipFile(out) as zin:
+        files = {n: zin.read(n) for n in zin.namelist()}
+    protocols = [
+        json.loads(line) for line in files["protocols.jsonl"].decode().splitlines() if line
+    ]
+    local_v1_id = protocols[0]["id"]
+    protocols[0]["id"] = str(uuid_mod.uuid4())
+    protocols[0]["title"] = "Incoming v1"
+    files["protocols.jsonl"] = ("".join(
+        json.dumps(p, sort_keys=True, separators=(",", ":")) + "\n" for p in protocols
+    )).encode()
+    man = json.loads(files["manifest.json"])
+    for fc in man["files"]:
+        if fc["relative_path"] == "protocols.jsonl":
+            fc["sha256"] = hashlib.sha256(files["protocols.jsonl"]).hexdigest()
+            fc["size_bytes"] = len(files["protocols.jsonl"])
+    files["manifest.json"] = json.dumps(man).encode()
+    doctored = tmp_path / "other.prismaproj"
+    with zipfile.ZipFile(doctored, "w") as zout:
+        for name, payload in files.items():
+            zout.writestr(name, payload)
+
+    preview = await dispatcher.call(
+        "statefile.preview_import", {"input_path": str(doctored)}
+    )
+    conflict = next(
+        c for c in preview["diff"]["conflicts"] if c["kind"] == "protocol_parallel"
+    )
+    ckey = "protocol_parallel:" + "|".join(
+        f"{k}={v}" for k, v in sorted(conflict["key"].items())
+    )
+    await dispatcher.call(
+        "statefile.merge",
+        {
+            "input_path": str(doctored),
+            "resolutions": {ckey: "keep_incoming"},
+            "take_pre_import_snapshot": False,
+        },
+    )
+
+    # keep_incoming moves the local conflicted body to the trash; keep_both
+    # would have kept it live. The incoming body lands as the new version.
+    Session = get_sessionmaker()
+    async with Session() as session:
+        import uuid as uuid_mod2
+
+        local_row = await session.get(Protocol, uuid_mod2.UUID(local_v1_id))
+        assert local_row is not None
+        assert local_row.deleted_at is not None
+
+
+async def test_read_bundle_rejects_post_validation_tampering(
+    dispatcher, local_identity, tmp_path
+):
+    from prismapi.statefile.importer import read_bundle, validate_manifest
+    from prismapi.statefile.schema import UnsupportedSchemaError
+
+    pid = await _seed_project(dispatcher)
+    out = tmp_path / "src.prismaproj"
+    await dispatcher.call("statefile.export", {"project_id": pid, "output_path": str(out)})
+
+    manifest = validate_manifest(out)
+
+    # Swap bytes after validation (the TOCTOU window the merge path had).
+    with zipfile.ZipFile(out) as zin:
+        files = {n: zin.read(n) for n in zin.namelist()}
+    files["records.jsonl"] = b'{"doctored": true}\n'
+    with zipfile.ZipFile(out, "w") as zout:
+        for name, payload in files.items():
+            zout.writestr(name, payload)
+
+    with pytest.raises(UnsupportedSchemaError) as exc:
+        read_bundle(out, manifest)
+    assert "changed since validation" in str(exc.value)

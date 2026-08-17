@@ -191,29 +191,28 @@ async def apply_merge(
         )
         return (current or 0) + 1
 
+    async def _resolve_parallel(c: Conflict, model: type, table: str) -> None:
+        """keep_incoming supersedes the local conflicted version (it moves to
+        the trash); keep_both keeps both bodies visible. Either way the
+        incoming body lands as a new version on top of the local maximum."""
+        choice = resolutions[_conflict_key(c)]
+        if choice in ("keep_incoming", "keep_both"):
+            incoming_id = c.incoming["id"]
+            row = next(r for r in incoming[table] if r["id"] == incoming_id)
+            session.add(_hydrate(model, {**row, "version": await _next_version(model)}))
+            await session.flush()
+        if choice == "keep_incoming":
+            local = await session.get(model, _to_uuid(c.local["id"]))
+            if local is not None:
+                local.deleted_at = utcnow()
+        summary["conflicts_resolved"].setdefault(c.kind, 0)
+        summary["conflicts_resolved"][c.kind] += 1
+
     for c in preview.conflicts:
         if c.kind == "protocol_parallel":
-            choice = resolutions[_conflict_key(c)]
-            if choice in ("keep_incoming", "keep_both"):
-                incoming_id = c.incoming["id"]
-                row = next(p for p in incoming["protocols"] if p["id"] == incoming_id)
-                session.add(
-                    _hydrate(Protocol, {**row, "version": await _next_version(Protocol)})
-                )
-                await session.flush()
-            summary["conflicts_resolved"].setdefault("protocol_parallel", 0)
-            summary["conflicts_resolved"]["protocol_parallel"] += 1
+            await _resolve_parallel(c, Protocol, "protocols")
         elif c.kind == "codebook_parallel":
-            choice = resolutions[_conflict_key(c)]
-            if choice in ("keep_incoming", "keep_both"):
-                incoming_id = c.incoming["id"]
-                row = next(p for p in incoming["codebooks"] if p["id"] == incoming_id)
-                session.add(
-                    _hydrate(Codebook, {**row, "version": await _next_version(Codebook)})
-                )
-                await session.flush()
-            summary["conflicts_resolved"].setdefault("codebook_parallel", 0)
-            summary["conflicts_resolved"]["codebook_parallel"] += 1
+            await _resolve_parallel(c, Codebook, "codebooks")
         elif c.kind == "screening_drift":
             choice = resolutions[_conflict_key(c)]
             if choice == "keep_incoming":
@@ -312,6 +311,7 @@ async def apply_merge(
     # Team roster travels with the project: insert exported members whose
     # identity isn't already enrolled locally.
     member_rows = preview._adds.get("members", [])
+    members_inserted = 0
     for row in member_rows:
         exists = await session.scalar(
             select(ProjectMember).where(
@@ -321,12 +321,15 @@ async def apply_merge(
         )
         if exists is None:
             session.add(_hydrate(ProjectMember, row))
-    summary["added"]["members"] = len(member_rows)
-    if member_rows:
+            members_inserted += 1
+    summary["added"]["members"] = members_inserted
+    if members_inserted:
         await session.flush()
 
-    # Ensure the local actor is a member of the imported project (otherwise
-    # they can't access what they just merged).
+    # Ensure the local actor can see the project they just merged. Enrolled
+    # as read_only: a rater role would make them count toward the screening
+    # gates, silently re-locking phases the exporting team had completed.
+    # The lead promotes them from the exported roster when they really rate.
     if actor_identity_id is not None:
         project_uuid = _to_uuid(manifest.project_id)
         existing_member = await session.scalar(
@@ -340,7 +343,7 @@ async def apply_merge(
                 ProjectMember(
                     project_id=project_uuid,
                     identity_id=actor_identity_id,
-                    role="reviewer",
+                    role="read_only",
                 )
             )
             await session.flush()
