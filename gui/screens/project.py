@@ -187,11 +187,18 @@ class ProjectFrame(ctk.CTkFrame):
         inner.pack(fill="x", padx=18, pady=14)
         ctk.CTkLabel(inner, text="Project at a glance", font=("SF Pro Display", 14, "bold"), text_color=T.INK).pack(anchor="w")
         Helper(inner, "Field configuration version is pinned to this project.").pack(anchor="w", pady=(2, 12))
+        # The effective tool depends on the project's branch choices
+        # (tool_by_choice); the config's default alone can contradict what
+        # the Risk of bias panel actually renders.
+        try:
+            rob_tool = self.app.rpc.call("rob.tool", {"project_id": self.project_id})["tool"]
+        except Exception:  # noqa: BLE001 - module disabled or config error
+            rob_tool = self.config["risk_of_bias"]["tool"]
         for label, value in [
             ("Reporting", ", ".join([self.config["reporting"]["primary"]] + self.config["reporting"]["extensions"])),
             ("Registry", self.config["registries"]["primary"]),
             ("Required databases", ", ".join(self.config["databases"]["required"]) or "—"),
-            ("RoB tool", self.config["risk_of_bias"]["tool"]),
+            ("RoB tool", rob_tool),
             ("Effect size default", self.config["effect_sizes"]["default"]),
             ("Certainty framework", self.config["certainty"]["framework"]),
             ("Branch choices", ", ".join(f"{k}: {v}" for k, v in self.project["branch_choices"].items()) or "—"),

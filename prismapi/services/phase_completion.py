@@ -158,6 +158,30 @@ async def full_text_pool_ids(
     return pool
 
 
+async def extraction_pool_ids(
+    session: AsyncSession, project_id: uuid.UUID
+) -> set[uuid.UUID]:
+    """Ids of clusters included at full text — the studies to extract.
+
+    Applies the same advancing rule as the full-text pool, one stage later,
+    and only over clusters that reached full text in the first place.
+    """
+    ft_pool = await full_text_pool_ids(session, project_id)
+    if not ft_pool:
+        return set()
+    raters = await _rater_identity_ids(session, project_id)
+    ft_decisions = await _stage_decisions(session, project_id, "full_text")
+    rows = await session.execute(
+        select(ConflictResolution.cluster_id, ConflictResolution.final_decision).where(
+            ConflictResolution.project_id == project_id,
+            ConflictResolution.stage == "full_text",
+        )
+    )
+    ft_resolutions = {row[0]: row[1] for row in rows}
+    pool, _pending = _full_text_pool(ft_decisions, ft_resolutions, raters, ft_pool)
+    return pool
+
+
 async def gate_state(session: AsyncSession, project_id: uuid.UUID) -> GateState:
     """Assemble the `GateState` snapshot for a project from the database."""
     project_exists = bool(

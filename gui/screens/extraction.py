@@ -59,9 +59,13 @@ class ExtractionPanel(ctk.CTkFrame):
 
     def _load_clusters(self) -> None:
         try:
-            self.clusters = self.app.rpc.call(
-                "dedup.clusters.list", {"project_id": self.project["id"], "limit": 1000}
-            )["clusters"]
+            # Only studies included at full text — this phase must not offer
+            # screening-excluded studies.
+            self.clusters = self.app.rpc_fetch_all(
+                "screening.queue",
+                {"project_id": self.project["id"], "stage": "extraction"},
+                "clusters",
+            )
         except Exception as e:
             self.app.toast("Couldn't load clusters", str(e), variant="danger")
             self.clusters = []

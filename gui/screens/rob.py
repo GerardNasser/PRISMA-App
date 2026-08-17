@@ -63,9 +63,13 @@ class RoBPanel(ctk.CTkFrame):
             return
         self.tool_badge.configure(text=self.spec["tool"])
         try:
-            self.clusters = self.app.rpc.call(
-                "dedup.clusters.list", {"project_id": self.project["id"], "limit": 1000}
-            )["clusters"]
+            # Only studies included at full text — this phase must not offer
+            # screening-excluded studies.
+            self.clusters = self.app.rpc_fetch_all(
+                "screening.queue",
+                {"project_id": self.project["id"], "stage": "extraction"},
+                "clusters",
+            )
         except Exception as e:
             self.app.toast("Couldn't load clusters", str(e), variant="danger")
             self.clusters = []

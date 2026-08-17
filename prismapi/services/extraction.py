@@ -358,6 +358,10 @@ async def upsert_rob(
         existing.overall = overall
         existing.deleted_at = None
         existing.notes = notes
+        # The resolved tool can change (branch choices are mutable via
+        # project edits and statefile merges); a re-save validated against
+        # the new tool must not keep the old label on the row.
+        existing.tool = spec["tool"]
     await record_audit(
         session,
         project_id=project.id,
