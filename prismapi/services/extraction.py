@@ -288,6 +288,8 @@ async def upsert_extraction(
         existing.payload = payload
         existing.status = status
         existing.notes = notes
+        # A fresh save resurrects a trashed row (see upsert_decision).
+        existing.deleted_at = None
     await record_audit(
         session,
         project_id=project.id,
@@ -354,6 +356,7 @@ async def upsert_rob(
     else:
         existing.judgements = judgements
         existing.overall = overall
+        existing.deleted_at = None
         existing.notes = notes
     await record_audit(
         session,

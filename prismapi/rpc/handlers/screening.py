@@ -127,7 +127,10 @@ async def decisions_list(
     params: DecisionsList, session: AsyncSession, identity_id: uuid.UUID
 ) -> dict:
     project = await _assert_member(session, uuid.UUID(params.project_id), identity_id)
-    q = select(ScreeningDecision).where(ScreeningDecision.project_id == project.id)
+    q = select(ScreeningDecision).where(
+        ScreeningDecision.project_id == project.id,
+        ScreeningDecision.deleted_at.is_(None),
+    )
     if params.stage:
         q = q.where(ScreeningDecision.stage == params.stage)
     rows = await session.execute(q.order_by(ScreeningDecision.created_at.asc()))

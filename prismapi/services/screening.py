@@ -64,6 +64,9 @@ async def upsert_decision(
         existing.exclusion_code = exclusion_code
         existing.notes = notes
         existing.confidence = confidence
+        # A fresh decision resurrects a trashed row — otherwise the edit
+        # lands on a tombstone that lists show but gates ignore.
+        existing.deleted_at = None
     await record_audit(
         session,
         project_id=project_id,
@@ -91,6 +94,7 @@ async def compute_irr(
                 select(ScreeningDecision).where(
                     ScreeningDecision.project_id == project.id,
                     ScreeningDecision.stage == stage,
+                    ScreeningDecision.deleted_at.is_(None),
                 )
             )
         )

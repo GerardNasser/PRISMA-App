@@ -24,7 +24,11 @@ from prismapi.services.audit import record_audit
 
 
 async def screening_work_counts(session: AsyncSession, project_id: uuid.UUID) -> dict:
-    """Live screening, extraction, and RoB rows that a cluster reset would delete."""
+    """Screening, extraction, and RoB rows a cluster reset would delete.
+
+    Counts trashed rows too: the FK cascade does not distinguish, and a
+    trashed decision the user expects to restore is still real work.
+    """
     counts = {}
     for name, model in (
         ("screening_decisions", ScreeningDecision),
@@ -33,10 +37,7 @@ async def screening_work_counts(session: AsyncSession, project_id: uuid.UUID) ->
     ):
         counts[name] = (
             await session.scalar(
-                select(func.count(model.id)).where(
-                    model.project_id == project_id,
-                    model.deleted_at.is_(None),
-                )
+                select(func.count(model.id)).where(model.project_id == project_id)
             )
         ) or 0
     return counts
@@ -73,8 +74,8 @@ async def run_dedup(
                 raise RpcError(
                     VALIDATION,
                     "Re-running dedup deletes existing screening, extraction, and "
-                    "risk-of-bias work. Pass force=true to proceed; a snapshot is "
-                    "taken first.",
+                    "risk-of-bias work (including items in the trash). Pass "
+                    "force=true to proceed; a snapshot is taken first.",
                     {"would_delete": work},
                 )
             from prismapi.services.snapshot import take_snapshot  # lazy to avoid cycle

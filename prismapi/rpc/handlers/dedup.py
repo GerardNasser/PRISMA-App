@@ -123,6 +123,16 @@ async def clusters(
     return {"clusters": out}
 
 
+# Work tables a manual merge must carry over: (model, counter key, natural
+# key columns beyond cluster_id, whether rows can be soft-deleted).
+_WORK_TABLES = (
+    (ScreeningDecision, "decisions", ("reviewer_identity_id", "stage"), True),
+    (Extraction, "extractions", ("reviewer_identity_id",), True),
+    (RoBAssessment, "rob", ("reviewer_identity_id",), True),
+    (ConflictResolution, "resolutions", ("stage",), False),
+)
+
+
 async def _migrate_cluster_work(
     session: AsyncSession,
     losing_id: uuid.UUID,
@@ -132,84 +142,44 @@ async def _migrate_cluster_work(
 ) -> None:
     """Re-point screening/extraction/RoB work from a merged-away cluster.
 
-    Rows that would collide with an existing row on the canonical cluster
-    (same reviewer, and stage where applicable) are deleted instead — the
-    canonical cluster's copy wins.
+    When both clusters hold a row for the same natural key, a LIVE row always
+    wins: a soft-deleted row on the canonical side is replaced (its tombstone
+    deleted) rather than silently outranking real work. Two live rows keep
+    the canonical one; two tombstones keep the canonical tombstone.
     """
-    decision_rows = (
-        await session.execute(
-            select(ScreeningDecision).where(ScreeningDecision.cluster_id == losing_id)
-        )
-    ).scalars().all()
-    for row in decision_rows:
-        clash = await session.scalar(
-            select(ScreeningDecision.id).where(
-                ScreeningDecision.cluster_id == canonical_id,
-                ScreeningDecision.reviewer_identity_id == row.reviewer_identity_id,
-                ScreeningDecision.stage == row.stage,
-            )
-        )
-        if clash:
-            await session.delete(row)
-            dropped["decisions"] += 1
-        else:
-            row.cluster_id = canonical_id
-            migrated["decisions"] += 1
+    for model, counter, key_cols, soft_deletable in _WORK_TABLES:
+        losing_rows = (
+            await session.execute(select(model).where(model.cluster_id == losing_id))
+        ).scalars().all()
+        if not losing_rows:
+            continue
+        canonical_rows = (
+            await session.execute(select(model).where(model.cluster_id == canonical_id))
+        ).scalars().all()
 
-    extraction_rows = (
-        await session.execute(select(Extraction).where(Extraction.cluster_id == losing_id))
-    ).scalars().all()
-    for row in extraction_rows:
-        clash = await session.scalar(
-            select(Extraction.id).where(
-                Extraction.cluster_id == canonical_id,
-                Extraction.reviewer_identity_id == row.reviewer_identity_id,
-            )
-        )
-        if clash:
-            await session.delete(row)
-            dropped["extractions"] += 1
-        else:
-            row.cluster_id = canonical_id
-            migrated["extractions"] += 1
+        def key_of(row):
+            return tuple(getattr(row, c) for c in key_cols)
 
-    rob_rows = (
-        await session.execute(
-            select(RoBAssessment).where(RoBAssessment.cluster_id == losing_id)
-        )
-    ).scalars().all()
-    for row in rob_rows:
-        clash = await session.scalar(
-            select(RoBAssessment.id).where(
-                RoBAssessment.cluster_id == canonical_id,
-                RoBAssessment.reviewer_identity_id == row.reviewer_identity_id,
-            )
-        )
-        if clash:
-            await session.delete(row)
-            dropped["rob"] += 1
-        else:
-            row.cluster_id = canonical_id
-            migrated["rob"] += 1
-
-    resolution_rows = (
-        await session.execute(
-            select(ConflictResolution).where(ConflictResolution.cluster_id == losing_id)
-        )
-    ).scalars().all()
-    for row in resolution_rows:
-        clash = await session.scalar(
-            select(ConflictResolution.id).where(
-                ConflictResolution.cluster_id == canonical_id,
-                ConflictResolution.stage == row.stage,
-            )
-        )
-        if clash:
-            await session.delete(row)
-            dropped["resolutions"] += 1
-        else:
-            row.cluster_id = canonical_id
-            migrated["resolutions"] += 1
+        canonical_by_key = {key_of(r): r for r in canonical_rows}
+        for row in losing_rows:
+            existing = canonical_by_key.get(key_of(row))
+            if existing is None:
+                row.cluster_id = canonical_id
+                canonical_by_key[key_of(row)] = row
+                migrated[counter] += 1
+                continue
+            row_live = not soft_deletable or row.deleted_at is None
+            existing_live = not soft_deletable or existing.deleted_at is None
+            if row_live and not existing_live:
+                # The losing side has the real work; drop the tombstone.
+                await session.delete(existing)
+                await session.flush()
+                row.cluster_id = canonical_id
+                canonical_by_key[key_of(row)] = row
+                migrated[counter] += 1
+            else:
+                await session.delete(row)
+                dropped[counter] += 1
 
     await session.flush()
 

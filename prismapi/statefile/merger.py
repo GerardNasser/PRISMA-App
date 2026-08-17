@@ -252,6 +252,9 @@ async def apply_merge(
                     existing.payload = row.get("payload") or {}
                     existing.status = row.get("status") or existing.status
                     existing.notes = row.get("notes")
+                    # keep_incoming must produce a live row even when the
+                    # local copy sat in the trash.
+                    existing.deleted_at = None
             summary["conflicts_resolved"].setdefault(c.kind, 0)
             summary["conflicts_resolved"][c.kind] += 1
         elif c.kind == "rob_drift":
@@ -278,6 +281,7 @@ async def apply_merge(
                     existing.judgements = row.get("judgements") or {}
                     existing.overall = row.get("overall")
                     existing.notes = row.get("notes")
+                    existing.deleted_at = None
             summary["conflicts_resolved"].setdefault(c.kind, 0)
             summary["conflicts_resolved"][c.kind] += 1
         elif c.kind == "arbitration_drift":
