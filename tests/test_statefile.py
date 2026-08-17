@@ -118,9 +118,12 @@ async def test_export_round_trip_into_fresh_db(dispatcher, local_identity):
     # The importing actor (a fresh identity, absent from the exported roster)
     # is enrolled read_only — a rater role would count them toward the
     # screening gates and re-lock phases the exporting team completed.
+    # (The old install's identity arrives via the roster with role owner;
+    # the new local identity is a different id with the same email.)
+    me = await dispatcher.call("identity.get")
     members = await dispatcher.call("members.list", {"project_id": pid})
-    by_email = {m["identity"]["email"]: m["role"] for m in members}
-    assert by_email["gerard@example.edu"] == "read_only"
+    by_identity = {m["identity"]["id"]: m["role"] for m in members}
+    assert by_identity[me["id"]] == "read_only"
 
     phases = await dispatcher.call("phases.state", {"project_id": pid})
     ta = next(p for p in phases if p["phase"] == "title_abstract")
